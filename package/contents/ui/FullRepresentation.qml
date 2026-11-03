@@ -12,12 +12,20 @@ PlasmaExtras.Representation {
     // Height of the rows plus a margin above and below: the popup hugs its content.
     readonly property real listHeight: deviceList.contentHeight + Kirigami.Units.largeSpacing * 2
     readonly property real placeholderHeight: Kirigami.Units.gridUnit * 8
+    // Past this, the list scrolls instead of the popup growing further.
+    readonly property real maximumListHeight: Kirigami.Units.gridUnit * 24
     readonly property bool empty: deviceList.count === 0
+    readonly property real fittedHeight: empty ? placeholderHeight : Math.min(listHeight, maximumListHeight)
 
     Layout.minimumWidth: Kirigami.Units.gridUnit * 16
     Layout.preferredWidth: Kirigami.Units.gridUnit * 20
-    Layout.minimumHeight: empty ? placeholderHeight : Math.min(listHeight, Kirigami.Units.gridUnit * 12)
-    Layout.preferredHeight: empty ? placeholderHeight : listHeight
+    // Plasma saves the popup size when it closes and from then on ignores preferredHeight,
+    // so a popup sized for one device stayed that size with two. It keeps applying the
+    // minimum and maximum, though, also to a saved size: pinning both to the content
+    // makes the popup fit exactly the connected devices, and follow them as they change.
+    Layout.minimumHeight: fittedHeight
+    Layout.maximumHeight: fittedHeight
+    Layout.preferredHeight: fittedHeight
 
     collapseMarginsHint: true
 
