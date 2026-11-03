@@ -3,8 +3,10 @@
 
 #include "devicesource.h"
 
+#include <QDBusConnection>
 #include <QDBusMessage>
 #include <QDBusObjectPath>
+#include <QSet>
 #include <QVariantMap>
 
 // Peripheral batteries known to UPower: Bluetooth devices that BlueZ reports a level for
@@ -18,7 +20,8 @@ class UPowerSource : public DeviceSource
     Q_OBJECT
 
 public:
-    explicit UPowerSource(QObject *parent = nullptr);
+    // `bus` is the system bus in the widget; tests pass a private bus with a fake UPower.
+    explicit UPowerSource(const QDBusConnection &bus = QDBusConnection::systemBus(), QObject *parent = nullptr);
 
 private Q_SLOTS:
     void onDeviceAdded(const QDBusObjectPath &objectPath);
@@ -33,5 +36,9 @@ private:
     void watch(const QString &path);
     void unwatch(const QString &path);
 
+    QDBusConnection m_bus;
     QHash<QString, QVariantMap> m_properties; // peripheral object path -> UPower properties
+    // Paths subscribed to, including those whose GetAll has not returned (or failed), so
+    // that reset() can drop every subscription, not only those of tracked devices.
+    QSet<QString> m_watched;
 };

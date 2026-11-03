@@ -8,7 +8,7 @@
         ],
         "Category": "System Information",
         "Description": "Battery levels of AirPods, headphones, keyboards, mice and other wireless devices",
-        "Icon": "preferences-system-bluetooth-battery",
+        "Icon": "preferences-system-bluetooth-battery-symbolic",
         "Id": "io.github.giovannilentini.devicebattery",
         "License": "MIT",
         "Name": "Device Battery",

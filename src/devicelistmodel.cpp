@@ -37,6 +37,9 @@ QList<int> changedRoles(const Device &before, const Device &after)
     if (before.percentage != after.percentage) {
         roles << DeviceListModel::PercentageRole;
     }
+    if (before.coarseLevel != after.coarseLevel) {
+        roles << DeviceListModel::CoarseLevelRole;
+    }
     if (before.charging != after.charging) {
         roles << DeviceListModel::ChargingRole;
     }
@@ -80,6 +83,8 @@ QVariant DeviceListModel::data(const QModelIndex &index, int role) const
         return device.charging;
     case PartsRole:
         return partsToVariant(device.parts);
+    case CoarseLevelRole:
+        return coarseLevelKey(device.coarseLevel);
     }
     return {};
 }
@@ -92,6 +97,7 @@ QHash<int, QByteArray> DeviceListModel::roleNames() const
         {PercentageRole, "percentage"},
         {ChargingRole, "charging"},
         {PartsRole, "parts"},
+        {CoarseLevelRole, "coarseLevel"},
     };
 }
 
@@ -104,10 +110,22 @@ QVariantList DeviceListModel::summary() const
             {QStringLiteral("name"), device.name},
             {QStringLiteral("iconName"), iconName(device.kind)},
             {QStringLiteral("percentage"), device.percentage},
+            {QStringLiteral("coarseLevel"), coarseLevelKey(device.coarseLevel)},
             {QStringLiteral("charging"), device.charging},
+            {QStringLiteral("parts"), partsToVariant(device.parts)},
         });
     }
     return list;
+}
+
+const QList<Device> &DeviceListModel::devices() const
+{
+    return m_devices;
+}
+
+int DeviceListModel::lowestIndex() const
+{
+    return lowestDeviceIndex(m_devices);
 }
 
 int DeviceListModel::rowOf(const QString &id, int from) const

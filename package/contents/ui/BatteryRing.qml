@@ -3,17 +3,20 @@ import QtQuick.Shapes
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.plasmoid
 
+import "levels.js" as Levels
+
 // A circular battery gauge, in the style of Apple's Batteries widget.
 // Anything declared inside it (an icon, a label) is centred in the ring.
 Item {
     id: ring
 
     property int percentage: -1 // 0-100, or -1 when unknown
+    property string coarseLevel: "" // see PercentLabel
     property bool charging: false
     property real thickness: Math.max(2, Math.round(width / 12))
     default property alias content: centre.data
 
-    readonly property bool low: !charging && percentage >= 0 && percentage <= Plasmoid.configuration.lowThreshold
+    readonly property bool low: Levels.isLow(percentage, charging, coarseLevel, Plasmoid.configuration.lowThreshold)
     readonly property real radius: (Math.min(width, height) - thickness) / 2
 
     implicitWidth: Kirigami.Units.iconSizes.large

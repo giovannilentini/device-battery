@@ -18,6 +18,29 @@ const QString AppleModaliasPrefix = QStringLiteral("bluetooth:v004C");
 const QString AudioSinkUuid = QStringLiteral("0000110b-0000-1000-8000-00805f9b34fb");
 const QString HandsfreeUuid = QStringLiteral("0000111e-0000-1000-8000-00805f9b34fb");
 
+// The Device1 properties isConnectedAppleAudio(), displayName() and start() read. Changes of
+// any other property (e.g. RSSI while something scans) are ignored without further work.
+const QStringList RelevantKeys{
+    QStringLiteral("Address"),
+    QStringLiteral("Alias"),
+    QStringLiteral("Connected"),
+    QStringLiteral("Modalias"),
+    QStringLiteral("Name"),
+    QStringLiteral("UUIDs"),
+};
+
+QVariantMap relevantPart(const QVariantMap &properties)
+{
+    QVariantMap result;
+    for (const QString &key : RelevantKeys) {
+        const auto it = properties.constFind(key);
+        if (it != properties.constEnd()) {
+            result.insert(key, *it);
+        }
+    }
+    return result;
+}
+
 using InterfaceMap = QMap<QString, QVariantMap>;
 using ManagedObjects = QMap<QDBusObjectPath, InterfaceMap>;
 
@@ -47,26 +70,27 @@ QString deviceId(const QString &address)
 }
 }
 
-AirPodsSource::AirPodsSource(QObject *parent)
+AirPodsSource::AirPodsSource(const QDBusConnection &bus, QObject *parent)
     : DeviceSource(parent)
+    , m_bus(bus)
 {
-    QDBusConnection bus = QDBusConnection::systemBus();
     const QString root = QStringLiteral("/");
-    bus.connect(Service, root, ObjectManagerInterface, QStringLiteral("InterfacesAdded"), this, SLOT(onInterfacesAdded(QDBusMessage)));
-    bus.connect(Service, root, ObjectManagerInterface, QStringLiteral("InterfacesRemoved"), this, SLOT(onInterfacesRemoved(QDBusMessage)));
-    // A single match rule for every device; the bus filters out non-Device1 changes for us.
-    bus.connect(Service,
-                QString(),
-                DBus::PropertiesInterface,
-                QStringLiteral("PropertiesChanged"),
-                {DeviceInterface},
-                QString(),
-                this,
-                SLOT(onPropertiesChanged(QDBusMessage)));
+    m_bus.connect(Service, root, ObjectManagerInterface, QStringLiteral("InterfacesAdded"), this, SLOT(onInterfacesAdded(QDBusMessage)));
+    m_bus.connect(Service, root, ObjectManagerInterface, QStringLiteral("InterfacesRemoved"), this, SLOT(onInterfacesRemoved(QDBusMessage)));
+    // A single match rule for every device; the bus filters out changes of other interfaces
+    // (media transports, players, ...), but changes of every device's Device1 still arrive.
+    m_bus.connect(Service,
+                  QString(),
+                  DBus::PropertiesInterface,
+                  QStringLiteral("PropertiesChanged"),
+                  {DeviceInterface},
+                  QString(),
+                  this,
+                  SLOT(onPropertiesChanged(QDBusMessage)));
 
     // bluetoothd sends no InterfacesRemoved when it exits, so without this we would keep dead
     // sessions and stale levels after a restart. Also covers bluetoothd starting after us.
-    auto *watcher = new QDBusServiceWatcher(Service, bus, QDBusServiceWatcher::WatchForOwnerChange, this);
+    auto *watcher = new QDBusServiceWatcher(Service, m_bus, QDBusServiceWatcher::WatchForOwnerChange, this);
     connect(watcher, &QDBusServiceWatcher::serviceOwnerChanged, this, [this](const QString &, const QString &, const QString &newOwner) {
         qCDebug(DEVICEBATTERY) << "BlueZ" << (newOwner.isEmpty() ? "went away" : "(re)started");
         reset();
@@ -81,7 +105,7 @@ AirPodsSource::AirPodsSource(QObject *parent)
 void AirPodsSource::enumerate()
 {
     const auto getObjects = QDBusMessage::createMethodCall(Service, QStringLiteral("/"), ObjectManagerInterface, QStringLiteral("GetManagedObjects"));
-    DBus::callAsync(QDBusConnection::systemBus(), getObjects, this, [this](const QDBusMessage &reply) {
+    DBus::callAsync(m_bus, getObjects, this, [this](const QDBusMessage &reply) {
         const auto objects = DBus::argument<ManagedObjects>(reply, 0);
         for (auto object = objects.cbegin(); object != objects.cend(); ++object) {
             if (object->contains(DeviceInterface)) {
@@ -125,16 +149,25 @@ void AirPodsSource::onPropertiesChanged(const QDBusMessage &message)
     if (cached == m_properties.end()) {
         return; // InterfacesAdded for this device has not arrived yet
     }
-    cached->insert(DBus::argument<QVariantMap>(message, 1));
-    for (const QString &invalidated : DBus::argument<QStringList>(message, 2)) {
-        cached->remove(invalidated);
+    bool relevant = false;
+    const QVariantMap changed = DBus::argument<QVariantMap>(message, 1);
+    for (auto it = changed.cbegin(); it != changed.cend(); ++it) {
+        if (RelevantKeys.contains(it.key())) {
+            cached->insert(it.key(), it.value());
+            relevant = true;
+        }
     }
-    evaluate(message.path());
+    for (const QString &invalidated : DBus::argument<QStringList>(message, 2)) {
+        relevant |= cached->remove(invalidated) > 0;
+    }
+    if (relevant) {
+        evaluate(message.path());
+    }
 }
 
 void AirPodsSource::addDevice(const QString &path, const QVariantMap &properties)
 {
-    m_properties.insert(path, properties);
+    m_properties.insert(path, relevantPart(properties));
     evaluate(path);
 }
 

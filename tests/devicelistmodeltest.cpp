@@ -162,6 +162,24 @@ private Q_SLOTS:
         QCOMPARE(parts.at(1).toMap().value(QStringLiteral("charging")).toBool(), true);
     }
 
+    void summaryListsPartsAndLowestDevice()
+    {
+        DeviceListModel model;
+        QCOMPARE(model.lowestIndex(), -1);
+
+        Device airPods = device(QStringLiteral("aap"), QStringLiteral("AirPods"), 40);
+        airPods.parts = {{BatteryPart::Component::Left, 40, false}, {BatteryPart::Component::Case, 10, true}};
+        Device mouse = device(QStringLiteral("mouse"), QStringLiteral("Mouse"), 5);
+        mouse.charging = true;
+        model.setDevices({airPods, mouse});
+
+        const QVariantList summary = model.summary();
+        QCOMPARE(summary.size(), 2);
+        QCOMPARE(summary.at(0).toMap().value(QStringLiteral("parts")).toList().size(), 2);
+        QVERIFY(summary.at(1).toMap().value(QStringLiteral("parts")).toList().isEmpty());
+        QCOMPARE(model.lowestIndex(), 0); // the charging mouse is lower but not running out
+    }
+
     void preferredDeviceHidesFallbackWithSameAddress()
     {
         Device airPods = device(QStringLiteral("aap:38:C4"), QStringLiteral("AirPods"));

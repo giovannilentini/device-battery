@@ -63,6 +63,52 @@ private Q_SLOTS:
         QCOMPARE(device.percentage, 0);
     }
 
+    // Devices with only a rough level: UPower's Percentage is a made-up value then.
+    void coarseLevelReplacesPercentage_data()
+    {
+        QTest::addColumn<uint>("batteryLevel");
+        QTest::addColumn<CoarseLevel>("level");
+        QTest::addColumn<int>("percentage");
+        QTest::newRow("low") << 3u << CoarseLevel::Low << 15;
+        QTest::newRow("critical") << 4u << CoarseLevel::Critical << 5;
+        QTest::newRow("normal") << 6u << CoarseLevel::Normal << 50;
+        QTest::newRow("high") << 7u << CoarseLevel::High << 80;
+        QTest::newRow("full") << 8u << CoarseLevel::Full << 100;
+    }
+
+    void coarseLevelReplacesPercentage()
+    {
+        QFETCH(uint, batteryLevel);
+        QFETCH(CoarseLevel, level);
+        QFETCH(int, percentage);
+        const Device device = UPower::toDevice(
+            Path,
+            {{QStringLiteral("BatteryLevel"), batteryLevel}, {QStringLiteral("Percentage"), 55.0}, {QStringLiteral("State"), StateDischarging}});
+        QCOMPARE(device.coarseLevel, level);
+        QCOMPARE(device.percentage, percentage);
+    }
+
+    // None (1), Unknown (0) or missing: the percentage is real.
+    void noCoarseLevelKeepsPercentage_data()
+    {
+        QTest::addColumn<QVariant>("batteryLevel");
+        QTest::newRow("none") << QVariant(1u);
+        QTest::newRow("unknown") << QVariant(0u);
+        QTest::newRow("missing") << QVariant();
+    }
+
+    void noCoarseLevelKeepsPercentage()
+    {
+        QFETCH(QVariant, batteryLevel);
+        QVariantMap properties{{QStringLiteral("Percentage"), 73.0}, {QStringLiteral("State"), StateDischarging}};
+        if (batteryLevel.isValid()) {
+            properties.insert(QStringLiteral("BatteryLevel"), batteryLevel);
+        }
+        const Device device = UPower::toDevice(Path, properties);
+        QCOMPARE(device.coarseLevel, CoarseLevel::None);
+        QCOMPARE(device.percentage, 73);
+    }
+
     void kindPrefersModelName_data()
     {
         QTest::addColumn<QString>("model");

@@ -14,16 +14,16 @@ const QString ManagerInterface = QStringLiteral("org.freedesktop.UPower");
 const QString DeviceInterface = QStringLiteral("org.freedesktop.UPower.Device");
 }
 
-UPowerSource::UPowerSource(QObject *parent)
+UPowerSource::UPowerSource(const QDBusConnection &bus, QObject *parent)
     : DeviceSource(parent)
+    , m_bus(bus)
 {
-    QDBusConnection bus = QDBusConnection::systemBus();
-    bus.connect(Service, ManagerPath, ManagerInterface, QStringLiteral("DeviceAdded"), this, SLOT(onDeviceAdded(QDBusObjectPath)));
-    bus.connect(Service, ManagerPath, ManagerInterface, QStringLiteral("DeviceRemoved"), this, SLOT(onDeviceRemoved(QDBusObjectPath)));
+    m_bus.connect(Service, ManagerPath, ManagerInterface, QStringLiteral("DeviceAdded"), this, SLOT(onDeviceAdded(QDBusObjectPath)));
+    m_bus.connect(Service, ManagerPath, ManagerInterface, QStringLiteral("DeviceRemoved"), this, SLOT(onDeviceRemoved(QDBusObjectPath)));
 
     // upowerd sends no DeviceRemoved when it exits (update, crash), so without this we would
     // keep showing frozen levels until plasmashell restarts. Also covers a late start.
-    auto *watcher = new QDBusServiceWatcher(Service, bus, QDBusServiceWatcher::WatchForOwnerChange, this);
+    auto *watcher = new QDBusServiceWatcher(Service, m_bus, QDBusServiceWatcher::WatchForOwnerChange, this);
     connect(watcher, &QDBusServiceWatcher::serviceOwnerChanged, this, [this](const QString &, const QString &, const QString &newOwner) {
         qCDebug(DEVICEBATTERY) << "UPower" << (newOwner.isEmpty() ? "went away" : "(re)started");
         reset();
@@ -38,7 +38,7 @@ UPowerSource::UPowerSource(QObject *parent)
 void UPowerSource::enumerate()
 {
     const auto enumerate = QDBusMessage::createMethodCall(Service, ManagerPath, ManagerInterface, QStringLiteral("EnumerateDevices"));
-    DBus::callAsync(QDBusConnection::systemBus(), enumerate, this, [this](const QDBusMessage &reply) {
+    DBus::callAsync(m_bus, enumerate, this, [this](const QDBusMessage &reply) {
         for (const QDBusObjectPath &path : DBus::argument<QList<QDBusObjectPath>>(reply, 0)) {
             onDeviceAdded(path);
         }
@@ -47,8 +47,9 @@ void UPowerSource::enumerate()
 
 void UPowerSource::reset()
 {
-    for (auto it = m_properties.cbegin(); it != m_properties.cend(); ++it) {
-        unwatch(it.key());
+    const QSet<QString> watched = m_watched; // unwatch() modifies m_watched
+    for (const QString &path : watched) {
+        unwatch(path);
     }
     m_properties.clear();
     clear();
@@ -65,7 +66,7 @@ void UPowerSource::onDeviceAdded(const QDBusObjectPath &objectPath)
 
     auto getAll = QDBusMessage::createMethodCall(Service, path, DBus::PropertiesInterface, QStringLiteral("GetAll"));
     getAll << DeviceInterface;
-    DBus::callAsync(QDBusConnection::systemBus(), getAll, this, [this, path](const QDBusMessage &reply) {
+    DBus::callAsync(m_bus, getAll, this, [this, path](const QDBusMessage &reply) {
         track(path, DBus::argument<QVariantMap>(reply, 0));
     });
 }
@@ -93,14 +94,19 @@ void UPowerSource::track(const QString &path, const QVariantMap &properties)
 
 void UPowerSource::watch(const QString &path)
 {
-    QDBusConnection::systemBus()
-        .connect(Service, path, DBus::PropertiesInterface, QStringLiteral("PropertiesChanged"), this, SLOT(onPropertiesChanged(QDBusMessage)));
+    if (m_watched.contains(path)) {
+        return;
+    }
+    m_watched.insert(path);
+    m_bus.connect(Service, path, DBus::PropertiesInterface, QStringLiteral("PropertiesChanged"), this, SLOT(onPropertiesChanged(QDBusMessage)));
 }
 
 void UPowerSource::unwatch(const QString &path)
 {
-    QDBusConnection::systemBus()
-        .disconnect(Service, path, DBus::PropertiesInterface, QStringLiteral("PropertiesChanged"), this, SLOT(onPropertiesChanged(QDBusMessage)));
+    if (!m_watched.remove(path)) {
+        return;
+    }
+    m_bus.disconnect(Service, path, DBus::PropertiesInterface, QStringLiteral("PropertiesChanged"), this, SLOT(onPropertiesChanged(QDBusMessage)));
 }
 
 void UPowerSource::onPropertiesChanged(const QDBusMessage &message)

@@ -3,6 +3,7 @@
 
 #include "devicesource.h"
 
+#include <QDBusConnection>
 #include <QDBusMessage>
 #include <QVariantMap>
 
@@ -18,7 +19,8 @@ class AirPodsSource : public DeviceSource
     Q_OBJECT
 
 public:
-    explicit AirPodsSource(QObject *parent = nullptr);
+    // `bus` is the system bus in the widget; tests pass a private bus with a fake BlueZ.
+    explicit AirPodsSource(const QDBusConnection &bus = QDBusConnection::systemBus(), QObject *parent = nullptr);
 
 private Q_SLOTS:
     void onInterfacesAdded(const QDBusMessage &message);
@@ -41,6 +43,9 @@ private:
     void stop(const QString &path);
     void publish(const Tracked &tracked);
 
-    QHash<QString, QVariantMap> m_properties; // BlueZ device path -> org.bluez.Device1 properties
+    QDBusConnection m_bus;
+    // BlueZ device path -> the org.bluez.Device1 properties we use (see RelevantKeys). Every
+    // BlueZ device is cached, also ones merely discovered nearby, so only a few keys are kept.
+    QHash<QString, QVariantMap> m_properties;
     QHash<QString, Tracked> m_tracked; // BlueZ device path -> active AAP session
 };

@@ -19,18 +19,24 @@ ecm_add_qml_module(devicebatteryplugin
     GENERATE_PLUGIN_SOURCE
 )
 
-target_sources(devicebatteryplugin PRIVATE
+# The device sources (D-Bus and the AAP socket). Separate from the plugin so tests can run
+# them against fake services on a private bus.
+add_library(devicebattery_sources STATIC
     aapsession.cpp
     airpodssource.cpp
     dbusutils.h
-    devicemodel.cpp
     devicesource.h
     upowersource.cpp
 )
+target_link_libraries(devicebattery_sources PUBLIC devicebattery_core Qt6::DBus)
+set_target_properties(devicebattery_sources PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+target_sources(devicebatteryplugin PRIVATE
+    devicemodel.cpp
+)
 
 target_link_libraries(devicebatteryplugin PRIVATE
-    devicebattery_core
-    Qt6::DBus
+    devicebattery_sources
     Qt6::Qml
 )
 

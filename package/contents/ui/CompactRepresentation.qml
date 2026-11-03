@@ -24,6 +24,23 @@ MouseArea {
     onPressed: wasExpanded = plasmoidItem.expanded
     onClicked: plasmoidItem.expanded = !wasExpanded
 
+    // Keyboard navigation in the panel and screen readers.
+    activeFocusOnTab: true
+    Accessible.name: Plasmoid.title
+    Accessible.description: plasmoidItem.toolTipSubText
+    Accessible.role: Accessible.Button
+    Keys.onPressed: event => {
+        switch (event.key) {
+        case Qt.Key_Space:
+        case Qt.Key_Enter:
+        case Qt.Key_Return:
+        case Qt.Key_Select:
+            plasmoidItem.expanded = !plasmoidItem.expanded;
+            event.accepted = true;
+            break;
+        }
+    }
+
     RowLayout {
         id: row
         anchors.fill: parent
@@ -34,6 +51,7 @@ MouseArea {
             Layout.preferredWidth: height
             Layout.alignment: Qt.AlignCenter
             percentage: compact.device ? compact.device.percentage : -1
+            coarseLevel: compact.device ? compact.device.coarseLevel : ""
             charging: compact.device ? compact.device.charging : false
 
             Kirigami.Icon {
@@ -46,6 +64,7 @@ MouseArea {
         PercentLabel {
             visible: compact.showLabel
             percentage: compact.device ? compact.device.percentage : -1
+            coarseLevel: compact.device ? compact.device.coarseLevel : ""
         }
     }
 }

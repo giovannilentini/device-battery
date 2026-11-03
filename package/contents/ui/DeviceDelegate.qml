@@ -16,6 +16,7 @@ Item {
     required property string name
     required property string iconName
     required property int percentage
+    required property string coarseLevel
     required property bool charging
     required property var parts
 
@@ -46,6 +47,7 @@ Item {
             Layout.preferredHeight: Kirigami.Units.iconSizes.large
             Layout.alignment: Qt.AlignTop
             percentage: root.percentage
+            coarseLevel: root.coarseLevel
             charging: root.charging
 
             Kirigami.Icon {
@@ -71,6 +73,7 @@ Item {
 
                 PercentLabel {
                     percentage: root.percentage
+                    coarseLevel: root.coarseLevel
                     font.bold: true
                 }
             }
@@ -82,46 +85,52 @@ Item {
                 font: Kirigami.Theme.smallFont
             }
 
-            Flow {
+            // Only earbuds have parts: other devices never build the slots below (three rings
+            // and six labels per row that would stay hidden).
+            Loader {
                 Layout.fillWidth: true
-                visible: root.parts.length > 0
-                spacing: Kirigami.Units.largeSpacing
+                active: root.parts.length > 0
+                visible: active
 
-                // One fixed slot per component instead of a Repeater over `parts`: `parts` is a
-                // new list on every update, which would recreate the rings each time and skip
-                // their animation. The slots stay alive and only their values change.
-                Repeater {
-                    model: ["left", "right", "case"]
+                sourceComponent: Flow {
+                    spacing: Kirigami.Units.largeSpacing
 
-                    delegate: Row {
-                        id: part
+                    // One fixed slot per component instead of a Repeater over `parts`: `parts` is a
+                    // new list on every update, which would recreate the rings each time and skip
+                    // their animation. The slots stay alive and only their values change.
+                    Repeater {
+                        model: ["left", "right", "case"]
 
-                        required property string modelData
-                        readonly property var info: root.parts.find(entry => entry.component === part.modelData) ?? null
+                        delegate: Row {
+                            id: part
 
-                        visible: info !== null
-                        spacing: Kirigami.Units.smallSpacing
+                            required property string modelData
+                            readonly property var info: root.parts.find(entry => entry.component === part.modelData) ?? null
 
-                        BatteryRing {
-                            width: Kirigami.Units.iconSizes.smallMedium
-                            height: width
-                            anchors.verticalCenter: parent.verticalCenter
-                            percentage: part.info?.percentage ?? -1
-                            charging: part.info?.charging ?? false
-                        }
+                            visible: info !== null
+                            spacing: Kirigami.Units.smallSpacing
 
-                        PlasmaComponents3.Label {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: root.partName(part.modelData)
-                            textFormat: Text.PlainText
-                            font: Kirigami.Theme.smallFont
-                        }
+                            BatteryRing {
+                                width: Kirigami.Units.iconSizes.smallMedium
+                                height: width
+                                anchors.verticalCenter: parent.verticalCenter
+                                percentage: part.info?.percentage ?? -1
+                                charging: part.info?.charging ?? false
+                            }
 
-                        PercentLabel {
-                            anchors.verticalCenter: parent.verticalCenter
-                            percentage: part.info?.percentage ?? -1
-                            font: Kirigami.Theme.smallFont
-                            opacity: 0.7
+                            PlasmaComponents3.Label {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: root.partName(part.modelData)
+                                textFormat: Text.PlainText
+                                font: Kirigami.Theme.smallFont
+                            }
+
+                            PercentLabel {
+                                anchors.verticalCenter: parent.verticalCenter
+                                percentage: part.info?.percentage ?? -1
+                                font: Kirigami.Theme.smallFont
+                                opacity: 0.7
+                            }
                         }
                     }
                 }

@@ -35,7 +35,7 @@ QString iconName(DeviceKind kind)
     case DeviceKind::Other:
         break;
     }
-    return QStringLiteral("preferences-system-bluetooth-battery");
+    return QStringLiteral("preferences-system-bluetooth-battery-symbolic");
 }
 
 QString componentKey(BatteryPart::Component component)
@@ -51,6 +51,25 @@ QString componentKey(BatteryPart::Component component)
         break;
     }
     return QStringLiteral("main");
+}
+
+QString coarseLevelKey(CoarseLevel level)
+{
+    switch (level) {
+    case CoarseLevel::Critical:
+        return QStringLiteral("critical");
+    case CoarseLevel::Low:
+        return QStringLiteral("low");
+    case CoarseLevel::Normal:
+        return QStringLiteral("normal");
+    case CoarseLevel::High:
+        return QStringLiteral("high");
+    case CoarseLevel::Full:
+        return QStringLiteral("full");
+    case CoarseLevel::None:
+        break;
+    }
+    return {};
 }
 
 void applyBatteryParts(Device &device, QList<BatteryPart> parts)
@@ -71,21 +90,55 @@ void applyBatteryParts(Device &device, QList<BatteryPart> parts)
     device.kind = DeviceKind::Earbuds;
     device.parts = parts;
 
-    auto isBud = [](const BatteryPart &part) {
-        return part.component != Component::Case;
+    // The part whose level we show: the emptiest earbud in use, i.e. not charging in the case;
+    // with both earbuds in the case, the emptiest of them; with no earbud reported, the case.
+    // A part without a reading never wins, so one silent earbud cannot hide the other.
+    const auto emptiest = [&parts](auto &&accept) -> const BatteryPart * {
+        const BatteryPart *best = nullptr;
+        for (const BatteryPart &part : std::as_const(parts)) {
+            if (part.percentage >= 0 && accept(part) && (!best || part.percentage < best->percentage)) {
+                best = &part;
+            }
+        }
+        return best;
     };
-    QList<BatteryPart> buds;
-    std::ranges::copy_if(parts, std::back_inserter(buds), isBud);
-    const QList<BatteryPart> &relevant = buds.isEmpty() ? parts : buds;
-
-    if (relevant.isEmpty()) {
-        device.percentage = -1;
-        device.charging = false;
-        return;
+    const BatteryPart *shown = emptiest([](const BatteryPart &part) {
+        return part.component != Component::Case && !part.charging;
+    });
+    if (!shown) {
+        shown = emptiest([](const BatteryPart &part) {
+            return part.component != Component::Case;
+        });
     }
-    const auto emptiest = std::ranges::min_element(relevant, {}, &BatteryPart::percentage);
-    device.percentage = emptiest->percentage;
-    device.charging = std::ranges::any_of(relevant, &BatteryPart::charging);
+    if (!shown) {
+        shown = emptiest([](const BatteryPart &) {
+            return true;
+        });
+    }
+    device.percentage = shown ? shown->percentage : -1;
+    // The state of the level we show: an earbud charging in the case must not mark the
+    // device as charging while the one in the ear runs down.
+    device.charging = shown && shown->charging;
+}
+
+int lowestDeviceIndex(const QList<Device> &devices)
+{
+    // A charging device is not running out, so it only counts when every device charges.
+    int lowest = -1;
+    bool lowestCharging = true;
+    for (int i = 0; i < devices.size(); ++i) {
+        const Device &device = devices.at(i);
+        if (device.percentage < 0) {
+            continue;
+        }
+        const bool better =
+            lowest < 0 || (lowestCharging && !device.charging) || (lowestCharging == device.charging && device.percentage < devices.at(lowest).percentage);
+        if (better) {
+            lowest = i;
+            lowestCharging = device.charging;
+        }
+    }
+    return lowest;
 }
 
 QString bluetoothAddressIn(const QString &text)
@@ -96,6 +149,20 @@ QString bluetoothAddressIn(const QString &text)
         return {};
     }
     return match.captured().replace(QLatin1Char('_'), QLatin1Char(':')).toUpper();
+}
+
+QList<Device> vanishedDevices(const QList<Device> &shown, const QList<Device> &next)
+{
+    QList<Device> vanished;
+    for (const Device &old : shown) {
+        const bool replaced = std::ranges::any_of(next, [&old](const Device &device) {
+            return device.id == old.id || (!old.address.isEmpty() && device.address == old.address) || (device.name == old.name && device.kind == old.kind);
+        });
+        if (!replaced) {
+            vanished.append(old);
+        }
+    }
+    return vanished;
 }
 
 QList<Device> mergeDevices(const QList<Device> &preferred, const QList<Device> &fallback)

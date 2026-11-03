@@ -31,19 +31,20 @@ jobs:
           dnf install -y --setopt=install_weak_deps=False
           git cmake ninja-build gcc-c++ extra-cmake-modules
           qt6-qtbase-devel qt6-qtdeclarative-devel bluez-libs-devel
-          libasan libubsan
+          libasan libubsan dbus-daemon
 
       - name: Install dependencies (Arch Linux)
         if: startsWith(matrix.image, 'archlinux')
         run: >
           pacman -Syu --noconfirm --needed
-          git cmake ninja gcc extra-cmake-modules qt6-base qt6-declarative bluez-libs
+          git cmake ninja gcc extra-cmake-modules qt6-base qt6-declarative bluez-libs dbus
 
       - uses: actions/checkout@v5
 
       - name: Configure
         run: >
           cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
+          -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
           -DECM_ENABLE_SANITIZERS="${{ matrix.sanitizers }}"
 
       - name: Build
@@ -81,3 +82,27 @@ jobs:
           cmake -B build -G Ninja -DBUILD_TESTING=OFF -DKDE_CLANG_FORMAT_EXECUTABLE=/opt/clang-format/bin/clang-format
           cmake --build build --target clang-format
           git diff --exit-code || { echo "::error::Run 'cmake --build build --target clang-format' and commit the result."; exit 1; }
+
+  qmllint:
+    name: qmllint
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    steps:
+      # The QML modules the widget imports, so qmllint can check every type and property.
+      - name: Install dependencies
+        run: >
+          dnf install -y --setopt=install_weak_deps=False
+          git cmake ninja-build gcc-c++ extra-cmake-modules
+          qt6-qtbase-devel qt6-qtdeclarative-devel bluez-libs-devel
+          libplasma kf6-kirigami kf6-kcmutils
+
+      - uses: actions/checkout@v5
+
+      # Builds the plugin so qmllint also knows DeviceModel. qmllint exits 0 on warnings by
+      # default, hence --max-warnings 0. Plasma injects i18nc() at runtime, which qmllint
+      # cannot see, so unqualified accesses are reported without failing the job.
+      - name: Lint QML
+        run: |
+          cmake -B build -G Ninja -DBUILD_TESTING=OFF
+          cmake --build build
+          /usr/lib64/qt6/bin/qmllint --max-warnings 0 --unqualified info -I build/bin package/contents/ui/*.qml

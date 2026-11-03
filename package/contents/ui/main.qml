@@ -3,23 +3,60 @@ import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.plasmoid
 import io.github.giovannilentini.devicebattery
 
+import "levels.js" as Levels
+
 PlasmoidItem {
     id: root
 
-    // [{name, iconName, percentage, charging}, ...] from the shared C++ backend.
+    // The shared backend runs only while at least one instance of the widget exists.
+    Component.onCompleted: DeviceModel.acquire()
+    Component.onDestruction: DeviceModel.release()
+
+    // [{name, iconName, percentage, coarseLevel, charging, parts}, ...] from the shared C++ backend.
     readonly property var devices: DeviceModel.summary
 
-    // The device closest to running out; the panel icon follows it.
-    readonly property var lowestDevice: devices.reduce((lowest, device) => {
-        if (device.percentage < 0) {
-            return lowest;
+    // The device closest to running out; the panel icon follows it. Chosen in C++ (unit
+    // tested): a charging device only counts when every device is charging.
+    readonly property var lowestDevice: devices[DeviceModel.lowestIndex] ?? null
+
+    function levelText(percentage, coarseLevel) {
+        switch (coarseLevel) {
+        case "critical":
+            return i18nc("@info:tooltip rough battery level", "critical");
+        case "low":
+            return i18nc("@info:tooltip rough battery level", "low");
+        case "normal":
+            return i18nc("@info:tooltip rough battery level", "normal");
+        case "high":
+            return i18nc("@info:tooltip rough battery level", "high");
+        case "full":
+            return i18nc("@info:tooltip rough battery level", "full");
         }
-        return lowest === null || device.percentage < lowest.percentage ? device : lowest;
-    }, null)
+        return percentage >= 0
+            ? i18nc("battery level in percent", "%1%", percentage)
+            : i18nc("@info:tooltip battery level", "unknown");
+    }
+
+    function partText(part) {
+        let name = "";
+        switch (part.component) {
+        case "left":
+            name = i18nc("@info:tooltip left earbud", "Left");
+            break;
+        case "right":
+            name = i18nc("@info:tooltip right earbud", "Right");
+            break;
+        case "case":
+            name = i18nc("@info:tooltip charging case", "Case");
+            break;
+        }
+        return part.charging
+            ? i18nc("@info:tooltip earbud or case: battery level", "%1 %2, charging", name, levelText(part.percentage, ""))
+            : i18nc("@info:tooltip earbud or case: battery level", "%1 %2", name, levelText(part.percentage, ""));
+    }
 
     readonly property bool batteryLow: lowestDevice !== null
-        && !lowestDevice.charging
-        && lowestDevice.percentage <= Plasmoid.configuration.lowThreshold
+        && Levels.isLow(lowestDevice.percentage, lowestDevice.charging, lowestDevice.coarseLevel, Plasmoid.configuration.lowThreshold)
 
     // In the system tray: hidden with no devices, promoted when a battery is low.
     Plasmoid.status: {
@@ -35,9 +72,13 @@ PlasmoidItem {
             return i18nc("@info:tooltip", "No devices with battery information");
         }
         return devices.map(device => {
-            const level = device.percentage >= 0
-                ? i18nc("battery level in percent", "%1%", device.percentage)
-                : i18nc("@info:tooltip battery level", "unknown");
+            // Earbuds list each part ("AirPods: Left 40%, Right 80%, Case 10%, charging"),
+            // other devices their single level.
+            if (device.parts.length > 0) {
+                return i18nc("@info:tooltip device name: levels of its parts", "%1: %2",
+                             device.name, device.parts.map(part => partText(part)).join(", "));
+            }
+            const level = levelText(device.percentage, device.coarseLevel);
             return device.charging
                 ? i18nc("@info:tooltip device name: battery level", "%1: %2, charging", device.name, level)
                 : i18nc("@info:tooltip device name: battery level", "%1: %2", device.name, level);

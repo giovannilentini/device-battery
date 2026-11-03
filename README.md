@@ -53,11 +53,17 @@ uses.
 - **No extra process.** The backend is a QML plugin loaded into plasmashell.
 - **One backend for all widget instances.** The model is a QML singleton, so
   each device gets only one AAP connection.
-- **Minimal wake-ups.** Signals are subscribed per peripheral, or filtered on the bus
-  side, so updates to the laptop battery or other Bluetooth devices are never
-  delivered to the widget.
+- **Minimal wake-ups.** UPower signals are subscribed per peripheral, so updates to
+  the laptop battery are never delivered to the widget. BlueZ signals are filtered on
+  the bus side to device properties (no media volume or playback position updates);
+  changes of properties the widget does not use, such as signal strength while
+  something scans, are dropped without further work.
+- **Runs only while used.** The backend starts with the first widget instance and
+  stops when the last one is removed, closing every AirPods connection.
 - **Minimal UI updates.** The model applies precise row inserts, moves and changes,
   and reports only the roles that changed, so the popup never rebuilds its delegates.
+  A device that disappears stays listed for 2 seconds, so one that comes right back
+  (e.g. a Logitech mouse waking up) does not make the row or the tray icon blink.
 - **Survives daemon restarts.** If `bluetoothd` or `upowerd` restarts, the widget drops
   what it knew and reads the devices again.
 
@@ -93,8 +99,13 @@ sudo xargs rm -v < build/install_manifest.txt
 
 - **Show percentage next to the icon.** Applies to horizontal panels. The system tray
   always shows the icon only.
-- **Low battery at.** Below this level the ring turns red and the tray icon moves
-  out of the overflow menu.
+- **Low battery at.** At or below this level the ring turns red and the tray icon
+  moves out of the overflow menu. A device that is charging never counts as low, and
+  the panel shows the emptiest device that is running down.
+
+Devices that report only a rough level (many older Logitech mice) show it as a word,
+such as *Low* or *Normal*, instead of a made-up percentage; *Low* and *Critical* always
+count as low.
 
 ## Troubleshooting
 
@@ -110,7 +121,8 @@ QT_LOGGING_RULES="devicebattery.debug=true" plasmashell --replace
   (e.g. LibrePods). The widget retries automatically for as long as they stay
   connected (at most every 2 minutes), and reconnects if a session goes silent for
   5 minutes. After five failed attempts in a row it hides the last levels rather
-  than showing stale ones.
+  than showing stale ones. The overall level of AirPods is that of the emptiest
+  earbud in use (one charging in the case is left out); the tooltip lists each earbud and the case.
 - **AirPods or Beats show wrong levels.** The debug log above contains the raw bytes
   of every battery report (`Battery report from … components: 04 00 04 00 …`).
   Please open an issue with your model and those lines.
@@ -126,10 +138,15 @@ cmake -B build -DCMAKE_BUILD_TYPE=Debug
 cmake --build build
 ctest --test-dir build --output-on-failure
 cmake --build build --target clang-format   # needs clang-format
+/usr/lib64/qt6/bin/qmllint --max-warnings 0 --unqualified info -I build/bin package/contents/ui/*.qml
 ```
 
+The UPower source is tested against a fake UPower on a private bus, which needs
+`dbus-run-session` (package `dbus-daemon` on Fedora, `dbus` on Arch); without it that
+test is skipped.
+
 CI builds and tests every pull request on Fedora (with ASan and UBSan) and Arch Linux,
-and checks the formatting.
+treats compiler warnings as errors, lints the QML and checks the formatting.
 
 To try QML changes without installing, run the widget from the build tree:
 

@@ -47,7 +47,7 @@ PlasmaExtras.Representation {
                 anchors.centerIn: parent
                 width: parent.width - Kirigami.Units.gridUnit * 4
                 visible: deviceList.count === 0
-                iconName: "preferences-system-bluetooth-battery"
+                iconName: "preferences-system-bluetooth-battery-symbolic"
                 text: i18nc("@info", "No devices with battery information")
                 explanation: i18nc("@info", "Connect AirPods, headphones, a mouse or a keyboard to see their battery level here.")
             }
