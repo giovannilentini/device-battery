@@ -21,13 +21,15 @@ public:
     explicit UPowerSource(QObject *parent = nullptr);
 
 private Q_SLOTS:
-    void onDeviceAdded(const QDBusObjectPath &path);
-    void onDeviceRemoved(const QDBusObjectPath &path);
+    void onDeviceAdded(const QDBusObjectPath &objectPath);
+    void onDeviceRemoved(const QDBusObjectPath &objectPath);
     void onPropertiesChanged(const QDBusMessage &message);
 
 private:
     void track(const QString &path, const QVariantMap &properties);
     void publish(const QString &path);
+    void watch(const QString &path);
+    void unwatch(const QString &path);
 
     QHash<QString, QVariantMap> m_properties; // peripheral object path -> UPower properties
 };

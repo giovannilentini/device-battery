@@ -25,6 +25,7 @@ enum UPowerType : uint {
     Headphones = 19,
     OtherAudio = 21,
 };
+constexpr uint StateUnknown = 0;
 constexpr uint StateCharging = 1;
 
 QString deviceId(const QString &path)
@@ -80,6 +81,17 @@ DeviceKind kindOf(const QString &model, uint upowerType)
     return kindFromUPowerType(upowerType);
 }
 
+// UPower publishes a new device before it has read the battery, with a placeholder 0 %
+// and an unknown state. Show that as "unknown" rather than as an empty battery.
+int percentageOf(const QVariantMap &properties)
+{
+    const double percentage = properties.value(QStringLiteral("Percentage")).toDouble();
+    if (percentage == 0 && properties.value(QStringLiteral("State")).toUInt() == StateUnknown) {
+        return -1;
+    }
+    return qRound(percentage);
+}
+
 Device toDevice(const QString &path, const QVariantMap &properties)
 {
     const QString model = properties.value(QStringLiteral("Model")).toString();
@@ -88,7 +100,7 @@ Device toDevice(const QString &path, const QVariantMap &properties)
         .address = bluetoothAddressIn(properties.value(QStringLiteral("NativePath")).toString()),
         .name = model.isEmpty() ? properties.value(QStringLiteral("Vendor")).toString() : model,
         .kind = kindOf(model, properties.value(QStringLiteral("Type")).toUInt()),
-        .percentage = qRound(properties.value(QStringLiteral("Percentage")).toDouble()),
+        .percentage = percentageOf(properties),
         .charging = properties.value(QStringLiteral("State")).toUInt() == StateCharging,
         .parts = {},
     };
@@ -110,35 +122,53 @@ UPowerSource::UPowerSource(QObject *parent)
     });
 }
 
-void UPowerSource::onDeviceAdded(const QDBusObjectPath &path)
+void UPowerSource::onDeviceAdded(const QDBusObjectPath &objectPath)
 {
-    auto getAll = QDBusMessage::createMethodCall(Service, path.path(), DBus::PropertiesInterface, QStringLiteral("GetAll"));
+    const QString path = objectPath.path();
+
+    // Subscribe *before* reading the properties. UPower often fills in the real level right
+    // after announcing a device; subscribing only after our read returned would miss that
+    // update and leave the placeholder value on screen.
+    watch(path);
+
+    auto getAll = QDBusMessage::createMethodCall(Service, path, DBus::PropertiesInterface, QStringLiteral("GetAll"));
     getAll << DeviceInterface;
-    DBus::callAsync(QDBusConnection::systemBus(), getAll, this, [this, path = path.path()](const QDBusMessage &reply) {
+    DBus::callAsync(QDBusConnection::systemBus(), getAll, this, [this, path](const QDBusMessage &reply) {
         track(path, DBus::argument<QVariantMap>(reply, 0));
     });
 }
 
-void UPowerSource::onDeviceRemoved(const QDBusObjectPath &path)
+void UPowerSource::onDeviceRemoved(const QDBusObjectPath &objectPath)
 {
-    if (!m_properties.remove(path.path())) {
-        return;
+    const QString path = objectPath.path();
+    unwatch(path);
+    if (m_properties.remove(path)) {
+        remove(deviceId(path));
     }
-    QDBusConnection::systemBus().disconnect(Service, path.path(), DBus::PropertiesInterface, QStringLiteral("PropertiesChanged"), this,
-                                            SLOT(onPropertiesChanged(QDBusMessage)));
-    remove(deviceId(path.path()));
 }
 
 void UPowerSource::track(const QString &path, const QVariantMap &properties)
 {
-    if (!isPeripheral(properties) || m_properties.contains(path)) {
+    if (!isPeripheral(properties)) {
+        unwatch(path); // the laptop battery updates often and is not ours to show
         return;
     }
-    m_properties.insert(path, properties);
-    // Subscribe per device so the laptop battery's frequent updates never wake us up.
+    if (!m_properties.contains(path)) {
+        m_properties.insert(path, properties);
+        publish(path);
+    }
+}
+
+void UPowerSource::watch(const QString &path)
+{
     QDBusConnection::systemBus().connect(Service, path, DBus::PropertiesInterface, QStringLiteral("PropertiesChanged"), this,
                                          SLOT(onPropertiesChanged(QDBusMessage)));
-    publish(path);
+}
+
+void UPowerSource::unwatch(const QString &path)
+{
+    QDBusConnection::systemBus().disconnect(Service, path, DBus::PropertiesInterface, QStringLiteral("PropertiesChanged"), this,
+                                            SLOT(onPropertiesChanged(QDBusMessage)));
 }
 
 void UPowerSource::onPropertiesChanged(const QDBusMessage &message)
