@@ -22,7 +22,12 @@ enum class DeviceKind {
 
 // One independently powered component of a device, e.g. the left AirPod or the case.
 struct BatteryPart {
-    enum class Component { Main, Left, Right, Case };
+    enum class Component {
+        Main,
+        Left,
+        Right,
+        Case
+    };
 
     Component component = Component::Main;
     int percentage = -1; // 0-100, or -1 when unknown

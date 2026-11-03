@@ -17,6 +17,7 @@ include(KDECompilerSettings NO_POLICY_SCOPE)
 include(ECMQmlModule)
 include(ECMFindQmlModule)
 include(FeatureSummary)
+include(KDEClangFormat)
 include(CheckIncludeFiles)
 
 find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Core DBus Qml)
@@ -54,5 +55,10 @@ if(BUILD_TESTING)
     find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Test)
     add_subdirectory(tests)
 endif()
+
+# `cmake --build build --target clang-format` formats the code in KDE's style (needs
+# clang-format; CI checks that the code is formatted).
+file(GLOB_RECURSE ALL_CLANG_FORMAT_SOURCE_FILES CONFIGURE_DEPENDS src/*.cpp src/*.h tests/*.cpp)
+kde_clang_format(${ALL_CLANG_FORMAT_SOURCE_FILES})
 
 feature_summary(WHAT ALL INCLUDE_QUIET_PACKAGES FATAL_ON_MISSING_REQUIRED_PACKAGES)

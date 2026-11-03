@@ -14,7 +14,11 @@ private Q_SLOTS:
     // Captured from real AirPods: left 97 %, right 100 %, both discharging, case out of reach.
     void parsesRealBatteryPacket()
     {
-        const auto packet = QByteArray::fromHex("04000400040003" "0401610201" "0201640201" "0801000401");
+        const auto packet = QByteArray::fromHex(
+            "04000400040003"
+            "0401610201"
+            "0201640201"
+            "0801000401");
         const auto parts = Aap::parseBatteryPacket(packet);
 
         QVERIFY(parts.has_value());
@@ -25,7 +29,10 @@ private Q_SLOTS:
 
     void reportsChargingCaseAndSingleBattery()
     {
-        const auto packet = QByteArray::fromHex("04000400040002" "0801370101" "0101200201");
+        const auto packet = QByteArray::fromHex(
+            "04000400040002"
+            "0801370101"
+            "0101200201");
         const auto parts = Aap::parseBatteryPacket(packet);
 
         QVERIFY(parts.has_value());
@@ -37,7 +44,10 @@ private Q_SLOTS:
     void skipsUnknownComponents()
     {
         // 0x10 is not a component we know; the right bud next to it must still be read.
-        const auto packet = QByteArray::fromHex("04000400040002" "1001500201" "0201640201");
+        const auto packet = QByteArray::fromHex(
+            "04000400040002"
+            "1001500201"
+            "0201640201");
         const auto parts = Aap::parseBatteryPacket(packet);
 
         QVERIFY(parts.has_value());
@@ -47,7 +57,9 @@ private Q_SLOTS:
 
     void outOfRangeLevelIsUnknown()
     {
-        const auto packet = QByteArray::fromHex("04000400040001" "0401ff0201");
+        const auto packet = QByteArray::fromHex(
+            "04000400040001"
+            "0401ff0201");
         const auto parts = Aap::parseBatteryPacket(packet);
 
         QVERIFY(parts.has_value());
@@ -65,7 +77,11 @@ private Q_SLOTS:
     // Every prefix of a valid packet is either rejected or fully parsed, never read past its end.
     void rejectsEveryTruncation()
     {
-        const auto packet = QByteArray::fromHex("04000400040003" "0401610201" "0201640201" "0801000401");
+        const auto packet = QByteArray::fromHex(
+            "04000400040003"
+            "0401610201"
+            "0201640201"
+            "0801000401");
         for (qsizetype size = 0; size < packet.size(); ++size) {
             QVERIFY2(!Aap::parseBatteryPacket(packet.first(size)).has_value(), qPrintable(QString::number(size)));
         }

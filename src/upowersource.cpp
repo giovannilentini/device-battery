@@ -93,14 +93,14 @@ void UPowerSource::track(const QString &path, const QVariantMap &properties)
 
 void UPowerSource::watch(const QString &path)
 {
-    QDBusConnection::systemBus().connect(Service, path, DBus::PropertiesInterface, QStringLiteral("PropertiesChanged"), this,
-                                         SLOT(onPropertiesChanged(QDBusMessage)));
+    QDBusConnection::systemBus()
+        .connect(Service, path, DBus::PropertiesInterface, QStringLiteral("PropertiesChanged"), this, SLOT(onPropertiesChanged(QDBusMessage)));
 }
 
 void UPowerSource::unwatch(const QString &path)
 {
-    QDBusConnection::systemBus().disconnect(Service, path, DBus::PropertiesInterface, QStringLiteral("PropertiesChanged"), this,
-                                            SLOT(onPropertiesChanged(QDBusMessage)));
+    QDBusConnection::systemBus()
+        .disconnect(Service, path, DBus::PropertiesInterface, QStringLiteral("PropertiesChanged"), this, SLOT(onPropertiesChanged(QDBusMessage)));
 }
 
 void UPowerSource::onPropertiesChanged(const QDBusMessage &message)

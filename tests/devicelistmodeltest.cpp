@@ -184,8 +184,9 @@ private Q_SLOTS:
 
     void sortsNaturallyAndCaseInsensitively()
     {
-        const QList<Device> merged = mergeDevices({device(QStringLiteral("1"), QStringLiteral("mouse 10")), device(QStringLiteral("2"), QStringLiteral("Mouse 2"))},
-                                                  {device(QStringLiteral("3"), QStringLiteral("AirPods"))});
+        const QList<Device> merged =
+            mergeDevices({device(QStringLiteral("1"), QStringLiteral("mouse 10")), device(QStringLiteral("2"), QStringLiteral("Mouse 2"))},
+                         {device(QStringLiteral("3"), QStringLiteral("AirPods"))});
         QCOMPARE(merged.at(0).name, QStringLiteral("AirPods"));
         QCOMPARE(merged.at(1).name, QStringLiteral("Mouse 2"));
         QCOMPARE(merged.at(2).name, QStringLiteral("mouse 10"));
