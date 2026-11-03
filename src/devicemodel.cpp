@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 #include "devicemodel.h"
 
+#include "logging.h"
+
 #include <QCollator>
 #include <QSet>
 
@@ -176,6 +178,13 @@ void DeviceModel::sync()
         Q_EMIT countChanged();
     }
     if (changed) {
+        if (DEVICEBATTERY().isDebugEnabled()) {
+            QStringList levels;
+            for (const Device &device : std::as_const(m_devices)) {
+                levels << QStringLiteral("%1 %2%%3").arg(device.name).arg(device.percentage).arg(device.charging ? QStringLiteral(" (charging)") : QString());
+            }
+            qCDebug(DEVICEBATTERY).noquote() << "Devices:" << levels.join(QStringLiteral(", "));
+        }
         Q_EMIT summaryChanged();
     }
 }
