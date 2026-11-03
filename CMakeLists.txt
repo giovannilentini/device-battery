@@ -15,6 +15,7 @@ include(KDEInstallDirs)
 include(KDECMakeSettings)
 include(KDECompilerSettings NO_POLICY_SCOPE)
 include(ECMQmlModule)
+include(ECMFindQmlModule)
 include(FeatureSummary)
 include(CheckIncludeFiles)
 
@@ -26,6 +27,23 @@ check_include_files("bluetooth/bluetooth.h;bluetooth/l2cap.h" HAVE_BLUEZ_HEADERS
 if(NOT HAVE_BLUEZ_HEADERS)
     message(FATAL_ERROR "BlueZ headers not found. Install bluez-libs-devel (Fedora) or libbluetooth-dev (Debian/Ubuntu).")
 endif()
+
+# QML modules the widget imports. They are only needed at runtime, so a missing one does
+# not break the build but leaves an empty widget; report them in the feature summary.
+if(NOT DEFINED QT_MAJOR_VERSION)
+    set(QT_MAJOR_VERSION 6)
+endif()
+foreach(module
+        QtQuick.Shapes
+        org.kde.kcmutils
+        org.kde.kirigami
+        org.kde.plasma.components
+        org.kde.plasma.configuration
+        org.kde.plasma.core
+        org.kde.plasma.extras
+        org.kde.plasma.plasmoid)
+    ecm_find_qmlmodule(${module})
+endforeach()
 
 add_subdirectory(src)
 
