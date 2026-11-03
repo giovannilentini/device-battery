@@ -2,6 +2,7 @@
 #include "device.h"
 
 #include <QCollator>
+#include <QLocale>
 #include <QRegularExpression>
 #include <QSet>
 
@@ -112,7 +113,13 @@ QList<Device> mergeDevices(const QList<Device> &preferred, const QList<Device> &
         }
     }
 
-    QCollator collator;
+    // The C locale (LANG=C, containers) has no collation rules, and QCollator then ignores
+    // numeric mode, sorting "Mouse 10" before "Mouse 2". Use English rules there instead.
+    QLocale locale;
+    if (locale.language() == QLocale::C) {
+        locale = QLocale(QLocale::English);
+    }
+    QCollator collator(locale);
     collator.setCaseSensitivity(Qt::CaseInsensitive);
     collator.setNumericMode(true);
     std::ranges::sort(devices, [&collator](const Device &a, const Device &b) {

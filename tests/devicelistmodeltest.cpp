@@ -3,6 +3,7 @@
 
 #include <QAbstractItemModelTester>
 #include <QRandomGenerator>
+#include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTest>
 
@@ -182,8 +183,24 @@ private Q_SLOTS:
         QCOMPARE(merged.size(), 2);
     }
 
+    void sortsNaturallyAndCaseInsensitively_data()
+    {
+        QTest::addColumn<QLocale>("locale");
+        // The C locale is what CI containers and LANG=C sessions use.
+        QTest::newRow("C") << QLocale::c();
+        QTest::newRow("English") << QLocale(QLocale::English);
+        QTest::newRow("Italian") << QLocale(QLocale::Italian);
+    }
+
     void sortsNaturallyAndCaseInsensitively()
     {
+        QFETCH(QLocale, locale);
+        const QLocale previous;
+        QLocale::setDefault(locale);
+        const auto restore = qScopeGuard([&previous] {
+            QLocale::setDefault(previous);
+        });
+
         const QList<Device> merged =
             mergeDevices({device(QStringLiteral("1"), QStringLiteral("mouse 10")), device(QStringLiteral("2"), QStringLiteral("Mouse 2"))},
                          {device(QStringLiteral("3"), QStringLiteral("AirPods"))});
