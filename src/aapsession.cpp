@@ -162,7 +162,10 @@ void AapSession::onReadable()
             if (auto parts = Aap::parseBatteryPacket(QByteArrayView(buffer, size))) {
                 m_failedAttempts = 0; // only a real battery report proves the session works
                 m_reported = true;
-                qCDebug(DEVICEBATTERY) << "Battery report from" << m_address << "with" << parts->size() << "components";
+                // The raw bytes let users of other AirPods/Beats models report what their
+                // accessory sends, e.g. components or status values we do not know yet.
+                qCDebug(DEVICEBATTERY).noquote() << "Battery report from" << m_address << "with" << parts->size()
+                                                 << "components:" << QByteArray(buffer, size).toHex(' ');
                 Q_EMIT batteryChanged(*parts);
             }
             if (m_reported) {
