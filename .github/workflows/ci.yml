@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Fedora (ASan + UBSan)
+            image: fedora:latest
+            sanitizers: "address;undefined"
+          - name: Arch Linux
+            image: archlinux:latest
+            sanitizers: ""
+
+    steps:
+      - name: Install dependencies (Fedora)
+        if: startsWith(matrix.image, 'fedora')
+        run: >
+          dnf install -y --setopt=install_weak_deps=False
+          git cmake gcc-c++ extra-cmake-modules
+          qt6-qtbase-devel qt6-qtdeclarative-devel bluez-libs-devel
+          libasan libubsan
+
+      - name: Install dependencies (Arch Linux)
+        if: startsWith(matrix.image, 'archlinux')
+        run: >
+          pacman -Syu --noconfirm --needed
+          git cmake gcc extra-cmake-modules qt6-base qt6-declarative bluez-libs
+
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: >
+          cmake -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
+          -DECM_ENABLE_SANITIZERS="${{ matrix.sanitizers }}"
+
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+
+      - name: Test
+        env:
+          # Qt's own global state shows up as leaks at exit; UB must fail the test.
+          ASAN_OPTIONS: detect_leaks=0
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: ctest --test-dir build --output-on-failure
+
+  format:
+    name: clang-format
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    steps:
+      - name: Install dependencies
+        run: >
+          dnf install -y --setopt=install_weak_deps=False
+          git cmake gcc-c++ extra-cmake-modules
+          qt6-qtbase-devel qt6-qtdeclarative-devel bluez-libs-devel python3
+
+      # Pinned: other clang-format versions wrap some lines differently.
+      - name: Install clang-format
+        run: |
+          python3 -m venv /opt/clang-format
+          /opt/clang-format/bin/pip install clang-format==23.1.3
+
+      - uses: actions/checkout@v4
+
+      - name: Check formatting
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          cmake -B build -DBUILD_TESTING=OFF -DKDE_CLANG_FORMAT_EXECUTABLE=/opt/clang-format/bin/clang-format
+          cmake --build build --target clang-format
+          git diff --exit-code || { echo "::error::Run 'cmake --build build --target clang-format' and commit the result."; exit 1; }
