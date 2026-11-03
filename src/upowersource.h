@@ -26,6 +26,8 @@ private Q_SLOTS:
     void onPropertiesChanged(const QDBusMessage &message);
 
 private:
+    void enumerate();
+    void reset();
     void track(const QString &path, const QVariantMap &properties);
     void publish(const QString &path);
     void watch(const QString &path);

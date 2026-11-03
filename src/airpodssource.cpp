@@ -5,6 +5,7 @@
 #include "dbusutils.h"
 
 #include <QDBusObjectPath>
+#include <QDBusServiceWatcher>
 
 namespace
 {
@@ -63,8 +64,24 @@ AirPodsSource::AirPodsSource(QObject *parent)
                 this,
                 SLOT(onPropertiesChanged(QDBusMessage)));
 
-    const auto getObjects = QDBusMessage::createMethodCall(Service, root, ObjectManagerInterface, QStringLiteral("GetManagedObjects"));
-    DBus::callAsync(bus, getObjects, this, [this](const QDBusMessage &reply) {
+    // bluetoothd sends no InterfacesRemoved when it exits, so without this we would keep dead
+    // sessions and stale levels after a restart. Also covers bluetoothd starting after us.
+    auto *watcher = new QDBusServiceWatcher(Service, bus, QDBusServiceWatcher::WatchForOwnerChange, this);
+    connect(watcher, &QDBusServiceWatcher::serviceOwnerChanged, this, [this](const QString &, const QString &, const QString &newOwner) {
+        qCDebug(DEVICEBATTERY) << "BlueZ" << (newOwner.isEmpty() ? "went away" : "(re)started");
+        reset();
+        if (!newOwner.isEmpty()) {
+            enumerate();
+        }
+    });
+
+    enumerate();
+}
+
+void AirPodsSource::enumerate()
+{
+    const auto getObjects = QDBusMessage::createMethodCall(Service, QStringLiteral("/"), ObjectManagerInterface, QStringLiteral("GetManagedObjects"));
+    DBus::callAsync(QDBusConnection::systemBus(), getObjects, this, [this](const QDBusMessage &reply) {
         const auto objects = DBus::argument<ManagedObjects>(reply, 0);
         for (auto object = objects.cbegin(); object != objects.cend(); ++object) {
             if (object->contains(DeviceInterface)) {
@@ -72,6 +89,16 @@ AirPodsSource::AirPodsSource(QObject *parent)
             }
         }
     });
+}
+
+void AirPodsSource::reset()
+{
+    for (const Tracked &tracked : std::as_const(m_tracked)) {
+        delete tracked.session;
+    }
+    m_tracked.clear();
+    m_properties.clear();
+    clear();
 }
 
 void AirPodsSource::onInterfacesAdded(const QDBusMessage &message)

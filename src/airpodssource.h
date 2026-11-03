@@ -33,6 +33,8 @@ private:
         QList<BatteryPart> parts; // last report, kept so a rename can be published
     };
 
+    void enumerate();
+    void reset();
     void addDevice(const QString &path, const QVariantMap &properties);
     void evaluate(const QString &path);
     void start(const QString &path, const QVariantMap &properties);

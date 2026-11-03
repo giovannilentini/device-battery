@@ -42,6 +42,15 @@ protected:
         }
     }
 
+    // Forgets every device at once, e.g. when the service providing them went away.
+    void clear()
+    {
+        if (!m_devices.isEmpty()) {
+            m_devices.clear();
+            Q_EMIT devicesChanged();
+        }
+    }
+
 private:
     QHash<QString, Device> m_devices;
 };

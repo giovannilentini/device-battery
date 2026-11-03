@@ -3,6 +3,8 @@
 
 #include "dbusutils.h"
 
+#include <QDBusServiceWatcher>
+
 namespace
 {
 const QString Service = QStringLiteral("org.freedesktop.UPower");
@@ -114,12 +116,37 @@ UPowerSource::UPowerSource(QObject *parent)
     bus.connect(Service, ManagerPath, ManagerInterface, QStringLiteral("DeviceAdded"), this, SLOT(onDeviceAdded(QDBusObjectPath)));
     bus.connect(Service, ManagerPath, ManagerInterface, QStringLiteral("DeviceRemoved"), this, SLOT(onDeviceRemoved(QDBusObjectPath)));
 
+    // upowerd sends no DeviceRemoved when it exits (update, crash), so without this we would
+    // keep showing frozen levels until plasmashell restarts. Also covers a late start.
+    auto *watcher = new QDBusServiceWatcher(Service, bus, QDBusServiceWatcher::WatchForOwnerChange, this);
+    connect(watcher, &QDBusServiceWatcher::serviceOwnerChanged, this, [this](const QString &, const QString &, const QString &newOwner) {
+        qCDebug(DEVICEBATTERY) << "UPower" << (newOwner.isEmpty() ? "went away" : "(re)started");
+        reset();
+        if (!newOwner.isEmpty()) {
+            enumerate();
+        }
+    });
+
+    enumerate();
+}
+
+void UPowerSource::enumerate()
+{
     const auto enumerate = QDBusMessage::createMethodCall(Service, ManagerPath, ManagerInterface, QStringLiteral("EnumerateDevices"));
-    DBus::callAsync(bus, enumerate, this, [this](const QDBusMessage &reply) {
+    DBus::callAsync(QDBusConnection::systemBus(), enumerate, this, [this](const QDBusMessage &reply) {
         for (const QDBusObjectPath &path : DBus::argument<QList<QDBusObjectPath>>(reply, 0)) {
             onDeviceAdded(path);
         }
     });
+}
+
+void UPowerSource::reset()
+{
+    for (auto it = m_properties.cbegin(); it != m_properties.cend(); ++it) {
+        unwatch(it.key());
+    }
+    m_properties.clear();
+    clear();
 }
 
 void UPowerSource::onDeviceAdded(const QDBusObjectPath &objectPath)
