@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 #pragma once
 
+#include "airpodssource.h"
 #include "upowersource.h"
 
 #include <QAbstractListModel>
@@ -9,7 +10,7 @@
 // Every device with a battery, merged from all sources and sorted by name.
 //
 // A QML singleton, so all widget instances (panel, system tray, desktop) share one
-// backend. Updates are applied as minimal row
+// backend and one AAP connection per device. Updates are applied as minimal row
 // inserts/removes/changes, so the views never rebuild their delegates.
 class DeviceModel : public QAbstractListModel
 {
@@ -51,5 +52,6 @@ private:
     int rowOf(const QString &id, int from = 0) const;
 
     UPowerSource m_upower;
+    AirPodsSource m_airPods;
     QList<Device> m_devices;
 };

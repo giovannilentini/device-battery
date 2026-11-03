@@ -15,6 +15,8 @@ ecm_add_qml_module(devicebatteryplugin
 )
 
 target_sources(devicebatteryplugin PRIVATE
+    aapsession.cpp
+    airpodssource.cpp
     dbusutils.h
     devicemodel.cpp
     devicesource.h

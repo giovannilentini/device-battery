@@ -16,8 +16,16 @@ include(KDECMakeSettings)
 include(KDECompilerSettings NO_POLICY_SCOPE)
 include(ECMQmlModule)
 include(FeatureSummary)
+include(CheckIncludeFiles)
 
 find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Core DBus Qml)
+
+# Only the BlueZ *headers* are needed (sockaddr_l2 for the L2CAP socket), no library.
+# l2cap.h is not self-contained: it needs bluetooth.h first.
+check_include_files("bluetooth/bluetooth.h;bluetooth/l2cap.h" HAVE_BLUEZ_HEADERS LANGUAGE CXX)
+if(NOT HAVE_BLUEZ_HEADERS)
+    message(FATAL_ERROR "BlueZ headers not found. Install bluez-libs-devel (Fedora) or libbluetooth-dev (Debian/Ubuntu).")
+endif()
 
 add_subdirectory(src)
 

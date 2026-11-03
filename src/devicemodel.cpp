@@ -27,6 +27,7 @@ DeviceModel::DeviceModel(QObject *parent)
     : QAbstractListModel(parent)
 {
     connect(&m_upower, &DeviceSource::devicesChanged, this, &DeviceModel::sync);
+    connect(&m_airPods, &DeviceSource::devicesChanged, this, &DeviceModel::sync);
 }
 
 int DeviceModel::rowCount(const QModelIndex &parent) const
@@ -89,7 +90,18 @@ QVariantList DeviceModel::summary() const
 
 QList<Device> DeviceModel::mergedDevices() const
 {
-    QList<Device> devices = m_upower.devices();
+    // AirPods data is richer (per earbud and case), so it wins over a UPower entry
+    // for the same Bluetooth address, e.g. when PipeWire also reports a headset level.
+    QList<Device> devices = m_airPods.devices();
+    QSet<QString> claimed;
+    for (const Device &device : std::as_const(devices)) {
+        claimed.insert(device.address);
+    }
+    for (const Device &device : m_upower.devices()) {
+        if (device.address.isEmpty() || !claimed.contains(device.address)) {
+            devices.append(device);
+        }
+    }
 
     QCollator collator;
     collator.setCaseSensitivity(Qt::CaseInsensitive);
