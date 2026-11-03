@@ -9,10 +9,15 @@ import io.github.giovannilentini.devicebattery
 PlasmaExtras.Representation {
     id: full
 
+    // Height of the rows plus a margin above and below: the popup hugs its content.
+    readonly property real listHeight: deviceList.contentHeight + Kirigami.Units.largeSpacing * 2
+    readonly property real placeholderHeight: Kirigami.Units.gridUnit * 8
+    readonly property bool empty: deviceList.count === 0
+
     Layout.minimumWidth: Kirigami.Units.gridUnit * 16
-    Layout.minimumHeight: Kirigami.Units.gridUnit * 8
     Layout.preferredWidth: Kirigami.Units.gridUnit * 20
-    Layout.preferredHeight: Math.max(Layout.minimumHeight, deviceList.contentHeight + Kirigami.Units.largeSpacing * 2)
+    Layout.minimumHeight: empty ? placeholderHeight : Math.min(listHeight, Kirigami.Units.gridUnit * 12)
+    Layout.preferredHeight: empty ? placeholderHeight : listHeight
 
     collapseMarginsHint: true
 
