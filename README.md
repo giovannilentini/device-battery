@@ -40,8 +40,10 @@ uses.
 | `src/aapprotocol.{h,cpp}` | Builds and parses AAP packets (pure functions, unit tested) |
 | `src/aapsession.{h,cpp}` | One non-blocking L2CAP connection to one accessory |
 | `src/airpodssource.{h,cpp}` | Finds connected Apple audio devices through BlueZ and runs a session for each |
+| `src/upowerdevice.{h,cpp}` | Maps UPower properties to a `Device` (pure functions, unit tested) |
 | `src/upowersource.{h,cpp}` | Peripheral batteries from UPower |
-| `src/devicemodel.{h,cpp}` | Merges the sources into the list model the UI shows |
+| `src/devicelistmodel.{h,cpp}` | The list model: merging, sorting and minimal row updates (unit tested) |
+| `src/devicemodel.{h,cpp}` | The QML singleton that feeds both sources into the list model |
 | `package/` | The plasmoid: QML UI, settings and metadata |
 
 ### Performance
@@ -55,7 +57,9 @@ uses.
   side, so updates to the laptop battery or other Bluetooth devices are never
   delivered to the widget.
 - **Minimal UI updates.** The model applies precise row inserts, moves and changes,
-  so the popup never rebuilds its delegates.
+  and reports only the roles that changed, so the popup never rebuilds its delegates.
+- **Survives daemon restarts.** If `bluetoothd` or `upowerd` restarts, the widget drops
+  what it knew and reads the devices again.
 
 ## Build and install
 
@@ -103,12 +107,36 @@ QT_LOGGING_RULES="devicebattery.debug=true" plasmashell --replace
 - **AirPods show no level.** The AAP channel opens only while the AirPods are
   connected as an audio device, starting 2 seconds after they connect. AirPods
   answer **one AAP client at a time**, so close any other app that reads them
-  (e.g. LibrePods). The widget retries automatically, and reconnects if a session
-  goes silent for 5 minutes.
+  (e.g. LibrePods). The widget retries automatically for as long as they stay
+  connected (at most every 2 minutes), and reconnects if a session goes silent for
+  5 minutes. After five failed attempts in a row it hides the last levels rather
+  than showing stale ones.
+- **AirPods or Beats show wrong levels.** The debug log above contains the raw bytes
+  of every battery report (`Battery report from … components: 04 00 04 00 …`).
+  Please open an issue with your model and those lines.
 - **A Bluetooth device is missing.** Run `upower -d`. If the device isn't listed
   there, it doesn't report its battery to Linux. Some headsets only do so when
   BlueZ's experimental features are on (`Experimental = true` in
   `/etc/bluetooth/main.conf`).
+
+## Development
+
+```sh
+cmake -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build
+ctest --test-dir build --output-on-failure
+cmake --build build --target clang-format   # needs clang-format
+```
+
+CI builds and tests every pull request on Fedora (with ASan and UBSan) and Arch Linux,
+and checks the formatting.
+
+To try QML changes without installing, run the widget from the build tree:
+
+```sh
+mkdir -p /tmp/db/plasma/plasmoids && ln -sfn "$PWD/package" /tmp/db/plasma/plasmoids/io.github.giovannilentini.devicebattery
+XDG_DATA_DIRS=/tmp/db:/usr/share QML_IMPORT_PATH="$PWD/build/bin" plasmawindowed io.github.giovannilentini.devicebattery
+```
 
 ## License
 
