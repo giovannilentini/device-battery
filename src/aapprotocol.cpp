@@ -85,9 +85,10 @@ std::optional<QList<BatteryPart>> Aap::parseBatteryPacket(QByteArrayView packet)
         if (!component || status == Disconnected) {
             continue;
         }
+        const int level = byteAt(entry, LevelField);
         parts.append({
             .component = *component,
-            .percentage = qMin(int(byteAt(entry, LevelField)), 100),
+            .percentage = level <= 100 ? level : -1, // anything else is not a level we can trust
             .charging = status == Charging,
         });
     }

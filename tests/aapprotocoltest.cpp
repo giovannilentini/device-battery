@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 #include "aapprotocol.h"
 
+#include <QRandomGenerator>
 #include <QTest>
 
 using Component = BatteryPart::Component;
@@ -31,6 +32,64 @@ private Q_SLOTS:
         QCOMPARE(parts->size(), 2);
         QCOMPARE(parts->at(0), (BatteryPart{Component::Case, 55, true}));
         QCOMPARE(parts->at(1), (BatteryPart{Component::Main, 32, false}));
+    }
+
+    void skipsUnknownComponents()
+    {
+        // 0x10 is not a component we know; the right bud next to it must still be read.
+        const auto packet = QByteArray::fromHex("04000400040002" "1001500201" "0201640201");
+        const auto parts = Aap::parseBatteryPacket(packet);
+
+        QVERIFY(parts.has_value());
+        QCOMPARE(parts->size(), 1);
+        QCOMPARE(parts->at(0), (BatteryPart{Component::Right, 100, false}));
+    }
+
+    void outOfRangeLevelIsUnknown()
+    {
+        const auto packet = QByteArray::fromHex("04000400040001" "0401ff0201");
+        const auto parts = Aap::parseBatteryPacket(packet);
+
+        QVERIFY(parts.has_value());
+        QCOMPARE(parts->at(0), (BatteryPart{Component::Left, -1, false}));
+    }
+
+    void emptyBatteryPacketHasNoParts()
+    {
+        const auto parts = Aap::parseBatteryPacket(QByteArray::fromHex("04000400040000"));
+
+        QVERIFY(parts.has_value());
+        QVERIFY(parts->isEmpty());
+    }
+
+    // Every prefix of a valid packet is either rejected or fully parsed, never read past its end.
+    void rejectsEveryTruncation()
+    {
+        const auto packet = QByteArray::fromHex("04000400040003" "0401610201" "0201640201" "0801000401");
+        for (qsizetype size = 0; size < packet.size(); ++size) {
+            QVERIFY2(!Aap::parseBatteryPacket(packet.first(size)).has_value(), qPrintable(QString::number(size)));
+        }
+    }
+
+    // The parser runs inside plasmashell on bytes from a radio: arbitrary input must be safe.
+    // Run under ASan/UBSan to catch out-of-bounds reads, not just crashes.
+    void survivesRandomInput()
+    {
+        QRandomGenerator random(42); // fixed seed: failures must be reproducible
+        for (int i = 0; i < 20000; ++i) {
+            QByteArray packet(random.bounded(64), Qt::Uninitialized);
+            for (char &byte : packet) {
+                byte = char(random.bounded(256));
+            }
+            if (random.bounded(2)) { // half of them look like battery packets, to get past the header check
+                packet.prepend(QByteArray::fromHex("040004000400"));
+            }
+            if (const auto parts = Aap::parseBatteryPacket(packet)) {
+                for (const BatteryPart &part : *parts) {
+                    QVERIFY(part.percentage >= -1 && part.percentage <= 100);
+                }
+            }
+        }
     }
 
     void ignoresOtherPackets_data()
