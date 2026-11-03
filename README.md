@@ -69,30 +69,88 @@ uses.
 
 ## Build and install
 
-Build dependencies on Fedora:
+The widget contains a compiled plugin, so it has to be built from source. Installing
+it from *Get New Widgets…* in Plasma does not work. You need **Plasma 6** (Qt 6.6 or
+newer), so for example Fedora 40+, Arch Linux, Debian 13 (trixie), Kubuntu 25.04+,
+KDE neon or openSUSE Tumbleweed.
+
+### 1. Install the build dependencies
+
+**Fedora**
 
 ```sh
-sudo dnf install cmake gcc-c++ extra-cmake-modules \
+sudo dnf install git cmake gcc-c++ extra-cmake-modules \
     qt6-qtbase-devel qt6-qtdeclarative-devel bluez-libs-devel
 ```
 
-On Debian/Ubuntu: `cmake g++ extra-cmake-modules qt6-base-dev qt6-declarative-dev libbluetooth-dev`.
+**Debian, Ubuntu, Kubuntu, KDE neon**
+
+```sh
+sudo apt install git cmake g++ extra-cmake-modules \
+    qt6-base-dev qt6-declarative-dev libbluetooth-dev
+```
+
+**Arch Linux, Manjaro, EndeavourOS**
+
+```sh
+sudo pacman -S --needed git base-devel cmake extra-cmake-modules \
+    qt6-base qt6-declarative bluez-libs
+```
+
+**openSUSE Tumbleweed**
+
+```sh
+sudo zypper install git cmake gcc-c++ kf6-extra-cmake-modules \
+    qt6-base-devel qt6-declarative-devel bluez-devel
+```
+
+On other distributions, look for the equivalents of: CMake, a C++ compiler,
+Extra CMake Modules (ECM), the Qt 6 Base and Declarative development files and the
+BlueZ headers (`bluetooth/bluetooth.h`).
+
+### 2. Get the source
+
+```sh
+git clone https://github.com/giovannilentini/device-battery.git
+cd device-battery
+```
+
+Or download a release archive and extract it.
+
+### 3. Build and install
 
 ```sh
 cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
 cmake --build build
-ctest --test-dir build --output-on-failure
 sudo cmake --install build
 systemctl --user restart plasma-plasmashell   # load the new plugin
 ```
 
+At the end of the first command, CMake lists any QML modules the widget needs that are
+missing. They are part of a normal Plasma desktop, so this should only happen on
+minimal installs. If the widget shows up empty, install the missing ones (for example
+`qml6-module-qtquick-shapes` on Debian/Ubuntu).
+
 Then right-click the panel → *Add Widgets…* → **Device Battery**. In the system tray,
 go to *Configure System Tray… → Entries* instead.
 
-To uninstall:
+### Updating
+
+```sh
+cd device-battery
+git pull
+cmake --build build
+sudo cmake --install build
+systemctl --user restart plasma-plasmashell
+```
+
+### Uninstalling
+
+From the source directory:
 
 ```sh
 sudo xargs rm -v < build/install_manifest.txt
+systemctl --user restart plasma-plasmashell
 ```
 
 ## Settings

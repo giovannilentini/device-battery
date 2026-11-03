@@ -26,7 +26,7 @@ find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Core DBus Qml)
 # l2cap.h is not self-contained: it needs bluetooth.h first.
 check_include_files("bluetooth/bluetooth.h;bluetooth/l2cap.h" HAVE_BLUEZ_HEADERS LANGUAGE CXX)
 if(NOT HAVE_BLUEZ_HEADERS)
-    message(FATAL_ERROR "BlueZ headers not found. Install bluez-libs-devel (Fedora) or libbluetooth-dev (Debian/Ubuntu).")
+    message(FATAL_ERROR "BlueZ headers not found. Install bluez-libs-devel (Fedora), libbluetooth-dev (Debian/Ubuntu), bluez-libs (Arch) or bluez-devel (openSUSE).")
 endif()
 
 # QML modules the widget imports. They are only needed at runtime, so a missing one does
