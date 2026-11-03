@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 #include "device.h"
 
+#include <QCollator>
 #include <QRegularExpression>
+#include <QSet>
 
 #include <algorithm>
 
@@ -93,4 +95,29 @@ QString bluetoothAddressIn(const QString &text)
         return {};
     }
     return match.captured().replace(QLatin1Char('_'), QLatin1Char(':')).toUpper();
+}
+
+QList<Device> mergeDevices(const QList<Device> &preferred, const QList<Device> &fallback)
+{
+    QList<Device> devices = preferred;
+    QSet<QString> claimed;
+    for (const Device &device : preferred) {
+        if (!device.address.isEmpty()) {
+            claimed.insert(device.address);
+        }
+    }
+    for (const Device &device : fallback) {
+        if (device.address.isEmpty() || !claimed.contains(device.address)) {
+            devices.append(device);
+        }
+    }
+
+    QCollator collator;
+    collator.setCaseSensitivity(Qt::CaseInsensitive);
+    collator.setNumericMode(true);
+    std::ranges::sort(devices, [&collator](const Device &a, const Device &b) {
+        const int order = collator.compare(a.name, b.name);
+        return order != 0 ? order < 0 : a.id < b.id;
+    });
+    return devices;
 }

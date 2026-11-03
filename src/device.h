@@ -58,3 +58,7 @@ void applyBatteryParts(Device &device, QList<BatteryPart> parts);
 // Extracts a Bluetooth MAC address from strings such as "/org/bluez/hci0/dev_38_C4_3A_7B_06_85"
 // or "hid-38:c4:3a:7b:06:85-battery". Returns an empty string if there is none.
 QString bluetoothAddressIn(const QString &text);
+
+// Combines the devices of all sources into display order (by name, then id).
+// A device in `preferred` hides any device in `fallback` with the same Bluetooth address.
+QList<Device> mergeDevices(const QList<Device> &preferred, const QList<Device> &fallback);
