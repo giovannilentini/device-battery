@@ -26,12 +26,12 @@ uses.
 ## How it works
 
 ```
-                        ┌───────────── plasmashell ─────────────┐
+                        ┌───────────── plasmashell ──────────────┐
  UPower (system D-Bus) ─┤ UPowerSource ──┐                       │
                         │                ├─ DeviceModel ── QML UI│
  BlueZ  (system D-Bus) ─┤ AirPodsSource ─┘   (singleton)         │
                         │      └─ AapSession ── L2CAP socket ────┼── AirPods
-                        └───────────────────────────────────────┘
+                        └────────────────────────────────────────┘
 ```
 
 | File | Responsibility |
