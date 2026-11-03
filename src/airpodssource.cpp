@@ -176,6 +176,13 @@ void AirPodsSource::start(const QString &path, const QVariantMap &properties)
             publish(*entry);
         }
     });
+    connect(tracked.session, &AapSession::batteryLost, this, [this, path] {
+        const auto entry = m_tracked.find(path);
+        if (entry != m_tracked.end()) {
+            entry->parts.clear();
+            publish(*entry); // withdraws the device; a UPower entry for it may show instead
+        }
+    });
     m_tracked.insert(path, tracked);
 }
 

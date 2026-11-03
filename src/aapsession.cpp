@@ -12,6 +12,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <cerrno>
 #include <chrono>
 #include <cstring>
@@ -19,8 +20,13 @@
 
 namespace
 {
-constexpr int MaxFailedAttempts = 5;
+// Retry delays grow by RetryStep (3 s, 6 s, 9 s, ...) up to MaxRetryDelay, and retries never
+// stop: a session only exists while BlueZ says the device is connected, so it is worth
+// waiting for, and an idle retry costs one connect attempt every couple of minutes.
+// After FailuresUntilLost failures in a row the last levels are withdrawn as stale.
 constexpr auto RetryStep = std::chrono::seconds(3);
+constexpr auto MaxRetryDelay = std::chrono::minutes(2);
+constexpr int FailuresUntilLost = 5;
 
 // Right after the Bluetooth link comes up, AirPods accept the L2CAP channel but ignore the
 // handshake, so wait for them to settle before the first attempt.
@@ -96,6 +102,7 @@ void AapSession::connectToAccessory()
     m_socket = ::socket(AF_BLUETOOTH, SOCK_SEQPACKET | SOCK_NONBLOCK | SOCK_CLOEXEC, BTPROTO_L2CAP);
     if (m_socket < 0) {
         qCWarning(DEVICEBATTERY) << "Cannot create L2CAP socket:" << std::strerror(errno);
+        retryLater(); // e.g. the adapter is being reset, or we ran out of descriptors
         return;
     }
 
@@ -125,7 +132,9 @@ void AapSession::onConnectFinished()
 
     int error = 0;
     socklen_t length = sizeof(error);
-    ::getsockopt(m_socket, SOL_SOCKET, SO_ERROR, &error, &length);
+    if (::getsockopt(m_socket, SOL_SOCKET, SO_ERROR, &error, &length) < 0) {
+        error = errno;
+    }
     if (error != 0) {
         qCDebug(DEVICEBATTERY) << "AAP connect to" << m_address << "failed:" << std::strerror(error);
         closeSocket();
@@ -164,6 +173,9 @@ void AapSession::onReadable()
         if (size < 0 && errno == EAGAIN) { // EAGAIN == EWOULDBLOCK on Linux
             return; // drained
         }
+        if (size < 0 && errno == EINTR) {
+            continue;
+        }
         qCDebug(DEVICEBATTERY) << "AAP connection to" << m_address << "closed";
         closeSocket();
         retryLater();
@@ -191,9 +203,12 @@ void AapSession::closeSocket()
 
 void AapSession::retryLater()
 {
-    if (++m_failedAttempts > MaxFailedAttempts) {
-        qCDebug(DEVICEBATTERY) << "Giving up on AAP for" << m_address;
-        return;
+    ++m_failedAttempts;
+    if (m_failedAttempts == FailuresUntilLost) {
+        qCDebug(DEVICEBATTERY) << "AAP for" << m_address << "failed" << m_failedAttempts << "times in a row, dropping its levels";
+        Q_EMIT batteryLost();
     }
-    m_retryTimer.start(RetryStep * m_failedAttempts);
+    const auto delay = std::min<std::chrono::milliseconds>(RetryStep * m_failedAttempts, MaxRetryDelay);
+    qCDebug(DEVICEBATTERY) << "Retrying AAP for" << m_address << "in" << delay.count() / 1000 << "s";
+    m_retryTimer.start(delay);
 }
