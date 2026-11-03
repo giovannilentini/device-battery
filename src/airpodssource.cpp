@@ -140,6 +140,7 @@ void AirPodsSource::start(const QString &path, const QVariantMap &properties)
         .session = nullptr,
         .parts = {},
     };
+    qCDebug(DEVICEBATTERY) << "Tracking" << tracked.name << tracked.address;
     tracked.session = new AapSession(tracked.address, this);
     connect(tracked.session, &AapSession::batteryChanged, this, [this, path](const QList<BatteryPart> &parts) {
         const auto entry = m_tracked.find(path);
@@ -157,6 +158,7 @@ void AirPodsSource::stop(const QString &path)
     if (tracked == m_tracked.end()) {
         return;
     }
+    qCDebug(DEVICEBATTERY) << "Stopped tracking" << tracked->name << tracked->address;
     const QString id = deviceId(tracked->address);
     delete tracked->session;
     m_tracked.erase(tracked);

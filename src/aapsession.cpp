@@ -22,6 +22,14 @@ namespace
 constexpr int MaxFailedAttempts = 5;
 constexpr auto RetryStep = std::chrono::seconds(3);
 
+// Right after the Bluetooth link comes up, AirPods accept the L2CAP channel but ignore the
+// handshake, so wait for them to settle before the first attempt.
+constexpr auto SettleDelay = std::chrono::seconds(2);
+
+// An attempt that has not produced a battery report by then is considered failed:
+// the connect hung, or the accessory accepted the channel but stays silent.
+constexpr auto ResponseTimeout = std::chrono::seconds(8);
+
 // "38:C4:3A:7B:06:85" -> bdaddr_t, which BlueZ stores in reverse byte order.
 std::optional<bdaddr_t> toBdaddr(const QString &address)
 {
@@ -57,7 +65,15 @@ AapSession::AapSession(const QString &address, QObject *parent)
 {
     m_retryTimer.setSingleShot(true);
     connect(&m_retryTimer, &QTimer::timeout, this, &AapSession::connectToAccessory);
-    connectToAccessory();
+
+    m_responseTimer.setSingleShot(true);
+    connect(&m_responseTimer, &QTimer::timeout, this, [this] {
+        qCDebug(DEVICEBATTERY) << "No battery report from" << m_address << "- reconnecting";
+        closeSocket();
+        retryLater();
+    });
+
+    m_retryTimer.start(SettleDelay);
 }
 
 AapSession::~AapSession()
@@ -78,6 +94,8 @@ void AapSession::connectToAccessory()
         qCWarning(DEVICEBATTERY) << "Cannot create L2CAP socket:" << std::strerror(errno);
         return;
     }
+
+    m_responseTimer.start(ResponseTimeout);
 
     sockaddr_l2 target{};
     target.l2_family = AF_BLUETOOTH;
@@ -129,6 +147,8 @@ void AapSession::onReadable()
         if (size > 0) {
             if (auto parts = Aap::parseBatteryPacket(QByteArrayView(buffer, size))) {
                 m_failedAttempts = 0; // only a real battery report proves the session works
+                m_responseTimer.stop();
+                qCDebug(DEVICEBATTERY) << "Battery report from" << m_address << "with" << parts->size() << "components";
                 Q_EMIT batteryChanged(*parts);
             }
             continue;
@@ -152,6 +172,7 @@ void AapSession::send(const QByteArray &packet)
 
 void AapSession::closeSocket()
 {
+    m_responseTimer.stop();
     discard(m_readNotifier);
     discard(m_writeNotifier);
     if (m_socket >= 0) {
