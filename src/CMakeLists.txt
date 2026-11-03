@@ -3,6 +3,7 @@ add_library(devicebattery_core STATIC
     aapprotocol.cpp
     device.cpp
     logging.cpp
+    upowerdevice.cpp
 )
 target_include_directories(devicebattery_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(devicebattery_core PUBLIC Qt6::Core)

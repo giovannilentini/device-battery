@@ -2,6 +2,7 @@
 #include "upowersource.h"
 
 #include "dbusutils.h"
+#include "upowerdevice.h"
 
 #include <QDBusServiceWatcher>
 
@@ -11,102 +12,6 @@ const QString Service = QStringLiteral("org.freedesktop.UPower");
 const QString ManagerPath = QStringLiteral("/org/freedesktop/UPower");
 const QString ManagerInterface = QStringLiteral("org.freedesktop.UPower");
 const QString DeviceInterface = QStringLiteral("org.freedesktop.UPower.Device");
-
-// Values of the UPower "Type" and "State" properties we care about.
-enum UPowerType : uint {
-    Mouse = 5,
-    Keyboard = 6,
-    Phone = 8,
-    MediaPlayer = 9,
-    Tablet = 10,
-    GamingInput = 12,
-    Pen = 13,
-    Touchpad = 14,
-    Headset = 17,
-    Speakers = 18,
-    Headphones = 19,
-    OtherAudio = 21,
-};
-constexpr uint StateUnknown = 0;
-constexpr uint StateCharging = 1;
-
-QString deviceId(const QString &path)
-{
-    return QStringLiteral("upower:") + path;
-}
-
-DeviceKind kindFromUPowerType(uint type)
-{
-    switch (type) {
-    case Mouse:
-        return DeviceKind::Mouse;
-    case Keyboard:
-        return DeviceKind::Keyboard;
-    case Phone:
-        return DeviceKind::Phone;
-    case MediaPlayer:
-        return DeviceKind::MediaPlayer;
-    case Tablet:
-    case Pen:
-        return DeviceKind::Tablet;
-    case GamingInput:
-        return DeviceKind::Gamepad;
-    case Touchpad:
-        return DeviceKind::Touchpad;
-    case Headset:
-        return DeviceKind::Headset;
-    case Speakers:
-        return DeviceKind::Speaker;
-    case Headphones:
-    case OtherAudio:
-        return DeviceKind::Headphones;
-    }
-    return DeviceKind::Other;
-}
-
-// Laptop batteries, UPSes and AC adapters power the computer itself; skip them.
-bool isPeripheral(const QVariantMap &properties)
-{
-    return !properties.value(QStringLiteral("PowerSupply")).toBool();
-}
-
-// Some receivers (e.g. Logitech Lightspeed) make UPower report a mouse as a keyboard,
-// so an explicit word in the model name wins over the reported type.
-DeviceKind kindOf(const QString &model, uint upowerType)
-{
-    if (model.contains(QLatin1String("mouse"), Qt::CaseInsensitive)) {
-        return DeviceKind::Mouse;
-    }
-    if (model.contains(QLatin1String("keyboard"), Qt::CaseInsensitive)) {
-        return DeviceKind::Keyboard;
-    }
-    return kindFromUPowerType(upowerType);
-}
-
-// UPower publishes a new device before it has read the battery, with a placeholder 0 %
-// and an unknown state. Show that as "unknown" rather than as an empty battery.
-int percentageOf(const QVariantMap &properties)
-{
-    const double percentage = properties.value(QStringLiteral("Percentage")).toDouble();
-    if (percentage == 0 && properties.value(QStringLiteral("State")).toUInt() == StateUnknown) {
-        return -1;
-    }
-    return qRound(percentage);
-}
-
-Device toDevice(const QString &path, const QVariantMap &properties)
-{
-    const QString model = properties.value(QStringLiteral("Model")).toString();
-    return {
-        .id = deviceId(path),
-        .address = bluetoothAddressIn(properties.value(QStringLiteral("NativePath")).toString()),
-        .name = model.isEmpty() ? properties.value(QStringLiteral("Vendor")).toString() : model,
-        .kind = kindOf(model, properties.value(QStringLiteral("Type")).toUInt()),
-        .percentage = percentageOf(properties),
-        .charging = properties.value(QStringLiteral("State")).toUInt() == StateCharging,
-        .parts = {},
-    };
-}
 }
 
 UPowerSource::UPowerSource(QObject *parent)
@@ -170,13 +75,13 @@ void UPowerSource::onDeviceRemoved(const QDBusObjectPath &objectPath)
     const QString path = objectPath.path();
     unwatch(path);
     if (m_properties.remove(path)) {
-        remove(deviceId(path));
+        remove(UPower::deviceId(path));
     }
 }
 
 void UPowerSource::track(const QString &path, const QVariantMap &properties)
 {
-    if (!isPeripheral(properties)) {
+    if (!UPower::isPeripheral(properties)) {
         unwatch(path); // the laptop battery updates often and is not ours to show
         return;
     }
@@ -210,11 +115,11 @@ void UPowerSource::onPropertiesChanged(const QDBusMessage &message)
 
 void UPowerSource::publish(const QString &path)
 {
-    const QVariantMap &properties = m_properties.value(path);
+    const QVariantMap properties = m_properties.value(path);
     // A receiver can stay plugged in while its mouse is switched off.
-    if (properties.value(QStringLiteral("IsPresent"), true).toBool()) {
-        upsert(toDevice(path, properties));
+    if (UPower::isPresent(properties)) {
+        upsert(UPower::toDevice(path, properties));
     } else {
-        remove(deviceId(path));
+        remove(UPower::deviceId(path));
     }
 }
