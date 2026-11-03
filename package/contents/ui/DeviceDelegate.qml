@@ -87,34 +87,39 @@ Item {
                 visible: root.parts.length > 0
                 spacing: Kirigami.Units.largeSpacing
 
+                // One fixed slot per component instead of a Repeater over `parts`: `parts` is a
+                // new list on every update, which would recreate the rings each time and skip
+                // their animation. The slots stay alive and only their values change.
                 Repeater {
-                    model: root.parts
+                    model: ["left", "right", "case"]
 
                     delegate: Row {
                         id: part
 
-                        required property var modelData
+                        required property string modelData
+                        readonly property var info: root.parts.find(entry => entry.component === part.modelData) ?? null
 
+                        visible: info !== null
                         spacing: Kirigami.Units.smallSpacing
 
                         BatteryRing {
                             width: Kirigami.Units.iconSizes.smallMedium
                             height: width
                             anchors.verticalCenter: parent.verticalCenter
-                            percentage: part.modelData.percentage
-                            charging: part.modelData.charging
+                            percentage: part.info?.percentage ?? -1
+                            charging: part.info?.charging ?? false
                         }
 
                         PlasmaComponents3.Label {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: root.partName(part.modelData.component)
+                            text: root.partName(part.modelData)
                             textFormat: Text.PlainText
                             font: Kirigami.Theme.smallFont
                         }
 
                         PercentLabel {
                             anchors.verticalCenter: parent.verticalCenter
-                            percentage: part.modelData.percentage
+                            percentage: part.info?.percentage ?? -1
                             font: Kirigami.Theme.smallFont
                             opacity: 0.7
                         }

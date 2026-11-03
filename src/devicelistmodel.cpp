@@ -22,6 +22,29 @@ QVariantList partsToVariant(const QList<BatteryPart> &parts)
     }
     return list;
 }
+
+// The roles whose value differs between two versions of the same device. Views only
+// re-evaluate bindings of these roles; e.g. a level update leaves the name and icon alone.
+QList<int> changedRoles(const Device &before, const Device &after)
+{
+    QList<int> roles;
+    if (before.name != after.name) {
+        roles << Qt::DisplayRole << DeviceListModel::NameRole;
+    }
+    if (before.kind != after.kind) {
+        roles << DeviceListModel::IconNameRole;
+    }
+    if (before.percentage != after.percentage) {
+        roles << DeviceListModel::PercentageRole;
+    }
+    if (before.charging != after.charging) {
+        roles << DeviceListModel::ChargingRole;
+    }
+    if (before.parts != after.parts) {
+        roles << DeviceListModel::PartsRole;
+    }
+    return roles;
+}
 }
 
 DeviceListModel::DeviceListModel(QObject *parent)
@@ -116,33 +139,33 @@ void DeviceListModel::setDevices(const QList<Device> &wanted)
         }
     }
 
-    // 2. Walk the wanted order: update rows in place, insert new ones, and move rows
-    //    whose position changed (only happens when a device is renamed).
+    // 2. Walk the wanted order: move rows whose position changed (only happens when a device
+    //    is renamed), insert new ones, and report which roles of the others changed.
     for (int row = 0; row < wanted.size(); ++row) {
         const Device &device = wanted.at(row);
         const int current = rowOf(device.id, row);
-
-        if (current == row) {
-            if (m_devices.at(row) != device) {
-                m_devices[row] = device;
-                Q_EMIT dataChanged(index(row), index(row));
-                changed = true;
-            }
-            continue;
-        }
 
         if (current > row) {
             beginMoveRows({}, current, current, {}, row);
             m_devices.move(current, row);
             endMoveRows();
-            m_devices[row] = device;
-            Q_EMIT dataChanged(index(row), index(row));
-        } else {
+            changed = true;
+        }
+
+        if (current < 0) {
             beginInsertRows({}, row, row);
             m_devices.insert(row, device);
             endInsertRows();
+            changed = true;
+            continue;
         }
-        changed = true;
+
+        const QList<int> roles = changedRoles(m_devices.at(row), device);
+        m_devices[row] = device; // also keeps fields no role shows, e.g. the address
+        if (!roles.isEmpty()) {
+            Q_EMIT dataChanged(index(row), index(row), roles);
+            changed = true;
+        }
     }
 
     if (m_devices.size() != oldCount) {

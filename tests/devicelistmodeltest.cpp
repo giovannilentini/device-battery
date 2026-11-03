@@ -69,6 +69,23 @@ private Q_SLOTS:
         QCOMPARE(model.index(0).data(DeviceListModel::PercentageRole).toInt(), 40);
     }
 
+    // Views re-evaluate only the bindings of the roles listed in dataChanged.
+    void reportsOnlyChangedRoles()
+    {
+        DeviceListModel model;
+        Device airPods = device(QStringLiteral("aap"), QStringLiteral("AirPods"), 80);
+        airPods.parts = {{BatteryPart::Component::Left, 80, false}};
+        model.setDevices({airPods});
+
+        QSignalSpy changed(&model, &QAbstractItemModel::dataChanged);
+        airPods.percentage = 79;
+        airPods.parts[0].percentage = 79;
+        model.setDevices({airPods});
+
+        QCOMPARE(changed.size(), 1);
+        QCOMPARE(changed.at(0).at(2).value<QList<int>>(), (QList<int>{DeviceListModel::PercentageRole, DeviceListModel::PartsRole}));
+    }
+
     void identicalListEmitsNothing()
     {
         DeviceListModel model;
