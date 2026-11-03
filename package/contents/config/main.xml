@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0 http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+    <kcfgfile name=""/>
+    <group name="General">
+        <entry name="showPercentage" type="Bool">
+            <label>Show the lowest battery percentage next to the panel icon</label>
+            <default>true</default>
+        </entry>
+        <entry name="lowThreshold" type="Int">
+            <label>Level (in percent) at or below which a battery is considered low</label>
+            <default>20</default>
+            <min>5</min>
+            <max>50</max>
+        </entry>
+    </group>
+</kcfg>

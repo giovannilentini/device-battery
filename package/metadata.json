@@ -1,0 +1,21 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Email": "giovannilentini29@gmail.com",
+                "Name": "giovannilentini"
+            }
+        ],
+        "Category": "System Information",
+        "Description": "Battery levels of AirPods, headphones, keyboards, mice and other wireless devices",
+        "Icon": "preferences-system-bluetooth-battery",
+        "Id": "io.github.giovannilentini.devicebattery",
+        "License": "MIT",
+        "Name": "Device Battery",
+        "Version": "1.0.0"
+    },
+    "KPackageStructure": "Plasma/Applet",
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-NotificationArea": "true",
+    "X-Plasma-NotificationAreaCategory": "Hardware"
+}

@@ -29,6 +29,9 @@ endif()
 
 add_subdirectory(src)
 
+# The plasmoid itself is plain QML + metadata, installed as a KPackage.
+install(DIRECTORY package/ DESTINATION ${KDE_INSTALL_DATADIR}/plasma/plasmoids/${PLASMOID_ID})
+
 if(BUILD_TESTING)
     find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Test)
     add_subdirectory(tests)
