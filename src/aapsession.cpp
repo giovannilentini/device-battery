@@ -26,9 +26,13 @@ constexpr auto RetryStep = std::chrono::seconds(3);
 // handshake, so wait for them to settle before the first attempt.
 constexpr auto SettleDelay = std::chrono::seconds(2);
 
-// An attempt that has not produced a battery report by then is considered failed:
-// the connect hung, or the accessory accepted the channel but stays silent.
+// The watchdog reconnects a session that is not delivering data:
+// - an attempt with no battery report after ResponseTimeout failed (the connect hung, or the
+//   accessory accepted the channel but ignores us, e.g. while another app holds the session);
+// - a working session with no packet at all for IdleTimeout went stale. AirPods in use send
+//   something every minute or two, so this only triggers when the session really died.
 constexpr auto ResponseTimeout = std::chrono::seconds(8);
+constexpr auto IdleTimeout = std::chrono::minutes(5);
 
 // "38:C4:3A:7B:06:85" -> bdaddr_t, which BlueZ stores in reverse byte order.
 std::optional<bdaddr_t> toBdaddr(const QString &address)
@@ -66,9 +70,9 @@ AapSession::AapSession(const QString &address, QObject *parent)
     m_retryTimer.setSingleShot(true);
     connect(&m_retryTimer, &QTimer::timeout, this, &AapSession::connectToAccessory);
 
-    m_responseTimer.setSingleShot(true);
-    connect(&m_responseTimer, &QTimer::timeout, this, [this] {
-        qCDebug(DEVICEBATTERY) << "No battery report from" << m_address << "- reconnecting";
+    m_watchdog.setSingleShot(true);
+    connect(&m_watchdog, &QTimer::timeout, this, [this] {
+        qCDebug(DEVICEBATTERY) << "AAP session with" << m_address << (m_reported ? "went silent" : "sent no battery report") << "- reconnecting";
         closeSocket();
         retryLater();
     });
@@ -95,7 +99,8 @@ void AapSession::connectToAccessory()
         return;
     }
 
-    m_responseTimer.start(ResponseTimeout);
+    m_reported = false;
+    m_watchdog.start(ResponseTimeout);
 
     sockaddr_l2 target{};
     target.l2_family = AF_BLUETOOTH;
@@ -147,9 +152,12 @@ void AapSession::onReadable()
         if (size > 0) {
             if (auto parts = Aap::parseBatteryPacket(QByteArrayView(buffer, size))) {
                 m_failedAttempts = 0; // only a real battery report proves the session works
-                m_responseTimer.stop();
+                m_reported = true;
                 qCDebug(DEVICEBATTERY) << "Battery report from" << m_address << "with" << parts->size() << "components";
                 Q_EMIT batteryChanged(*parts);
+            }
+            if (m_reported) {
+                m_watchdog.start(IdleTimeout); // any traffic proves the session is alive
             }
             continue;
         }
@@ -172,7 +180,7 @@ void AapSession::send(const QByteArray &packet)
 
 void AapSession::closeSocket()
 {
-    m_responseTimer.stop();
+    m_watchdog.stop();
     discard(m_readNotifier);
     discard(m_writeNotifier);
     if (m_socket >= 0) {

@@ -38,6 +38,7 @@ private:
     QSocketNotifier *m_readNotifier = nullptr;
     QSocketNotifier *m_writeNotifier = nullptr;
     QTimer m_retryTimer;
-    QTimer m_responseTimer;
+    QTimer m_watchdog; // reconnects a session that delivers no data, see aapsession.cpp
+    bool m_reported = false; // a battery report arrived on the current connection
     int m_failedAttempts = 0;
 };

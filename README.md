@@ -101,8 +101,10 @@ QT_LOGGING_RULES="devicebattery.debug=true" plasmashell --replace
 ```
 
 - **AirPods show no level.** The AAP channel opens only while the AirPods are
-  connected as an audio device. After connecting them, wait a few seconds; the
-  widget retries a few times.
+  connected as an audio device, starting 2 seconds after they connect. AirPods
+  answer **one AAP client at a time**, so close any other app that reads them
+  (e.g. LibrePods). The widget retries automatically, and reconnects if a session
+  goes silent for 5 minutes.
 - **A Bluetooth device is missing.** Run `upower -d`. If the device isn't listed
   there, it doesn't report its battery to Linux. Some headsets only do so when
   BlueZ's experimental features are on (`Experimental = true` in
