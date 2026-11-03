@@ -1,5 +1,6 @@
 # Pure logic with no D-Bus or socket access, shared by the plugin and the unit tests.
 add_library(devicebattery_core STATIC
+    aapprotocol.cpp
     device.cpp
     logging.cpp
 )
