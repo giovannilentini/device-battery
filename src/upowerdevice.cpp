@@ -4,19 +4,34 @@
 namespace
 {
 // Values of the UPower "Type" and "State" properties we care about.
+// Every device kind UPower knows (UpDeviceKind); line power, batteries and UPSes never get
+// here, as they are power supplies.
 enum UPowerType : uint {
+    Monitor = 4,
     Mouse = 5,
     Keyboard = 6,
+    Pda = 7,
     Phone = 8,
     MediaPlayer = 9,
     Tablet = 10,
+    Computer = 11,
     GamingInput = 12,
     Pen = 13,
     Touchpad = 14,
+    Modem = 15,
+    Network = 16,
     Headset = 17,
     Speakers = 18,
     Headphones = 19,
+    Video = 20,
     OtherAudio = 21,
+    RemoteControl = 22,
+    Printer = 23,
+    Scanner = 24,
+    Camera = 25,
+    Wearable = 26,
+    Toy = 27,
+    BluetoothGeneric = 28,
 };
 constexpr uint StateUnknown = 0;
 constexpr uint StateCharging = 1;
@@ -29,6 +44,7 @@ DeviceKind kindFromUPowerType(uint type)
     case Keyboard:
         return DeviceKind::Keyboard;
     case Phone:
+    case Pda:
         return DeviceKind::Phone;
     case MediaPlayer:
         return DeviceKind::MediaPlayer;
@@ -46,6 +62,29 @@ DeviceKind kindFromUPowerType(uint type)
     case Headphones:
     case OtherAudio:
         return DeviceKind::Headphones;
+    case Computer:
+        return DeviceKind::Computer;
+    case Modem:
+        return DeviceKind::Modem;
+    case Network:
+        return DeviceKind::Network;
+    case Camera:
+        return DeviceKind::Camera;
+    case Video:
+        return DeviceKind::Video;
+    case Monitor:
+        return DeviceKind::Monitor;
+    case Printer:
+        return DeviceKind::Printer;
+    case Scanner:
+        return DeviceKind::Scanner;
+    case Toy:
+        return DeviceKind::Toy;
+    case BluetoothGeneric:
+        return DeviceKind::BluetoothGeneric;
+    case RemoteControl: // no such icon in Breeze: the generic one
+    case Wearable: // no such icon in Breeze: the generic one
+        break;
     }
     return DeviceKind::Other;
 }

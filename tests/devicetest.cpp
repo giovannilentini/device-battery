@@ -225,6 +225,15 @@ private Q_SLOTS:
         QCOMPARE(recentDevicesFromJson(recentDevicesToJson(recent)), recent);
     }
 
+    // Kinds added after the first release survive the cache file too.
+    void recentDevicesKeepNewKinds()
+    {
+        Device printer = makeDevice(QStringLiteral("upower:/printer"), QStringLiteral("Printer"), 40);
+        printer.kind = LastDeviceKind;
+        const QList<Device> recent = updateRecentDevices({}, {printer}, {}, 1);
+        QCOMPARE(recentDevicesFromJson(recentDevicesToJson(recent)).value(0).kind, LastDeviceKind);
+    }
+
     void recentDevicesSkipMalformedJson_data()
     {
         QTest::addColumn<QByteArray>("json");

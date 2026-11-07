@@ -36,6 +36,26 @@ QString iconName(DeviceKind kind)
         return QStringLiteral("phone");
     case DeviceKind::MediaPlayer:
         return QStringLiteral("multimedia-player");
+    case DeviceKind::Computer:
+        return QStringLiteral("computer");
+    case DeviceKind::Modem:
+        return QStringLiteral("network-modem");
+    case DeviceKind::Network:
+        return QStringLiteral("network-wireless");
+    case DeviceKind::Camera:
+        return QStringLiteral("camera-photo");
+    case DeviceKind::Video:
+        return QStringLiteral("camera-video");
+    case DeviceKind::Monitor:
+        return QStringLiteral("video-display");
+    case DeviceKind::Printer:
+        return QStringLiteral("printer");
+    case DeviceKind::Scanner:
+        return QStringLiteral("scanner");
+    case DeviceKind::Toy:
+        return QStringLiteral("applications-games");
+    case DeviceKind::BluetoothGeneric:
+        return QStringLiteral("preferences-system-bluetooth");
     case DeviceKind::Other:
         break;
     }
@@ -333,7 +353,7 @@ QList<Device> recentDevicesFromJson(const QByteArray &json)
         device.connected = false;
         const int kind = object.value(QStringLiteral("kind")).toInt();
         const int coarseLevel = object.value(QStringLiteral("coarseLevel")).toInt();
-        if (device.id.isEmpty() || device.lastSeen <= 0 || !validLevel(device.percentage) || !inRange(kind, DeviceKind::MediaPlayer)
+        if (device.id.isEmpty() || device.lastSeen <= 0 || !validLevel(device.percentage) || !inRange(kind, LastDeviceKind)
             || !inRange(coarseLevel, CoarseLevel::Full)) {
             continue;
         }

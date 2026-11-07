@@ -19,7 +19,19 @@ enum class DeviceKind {
     Tablet,
     Phone,
     MediaPlayer,
+    // Added later: new kinds go at the end, as the cache of disconnected devices stores the number.
+    Computer,
+    Modem,
+    Network,
+    Camera,
+    Video,
+    Monitor,
+    Printer,
+    Scanner,
+    Toy,
+    BluetoothGeneric,
 };
+constexpr DeviceKind LastDeviceKind = DeviceKind::BluetoothGeneric;
 
 // For devices that report only a rough level instead of a percentage (UPower "BatteryLevel",
 // e.g. many older Logitech mice). Their `percentage` is then our own stand-in for that level,
