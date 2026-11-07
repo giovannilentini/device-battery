@@ -12,15 +12,32 @@ PlasmoidItem {
     Component.onCompleted: DeviceModel.acquire()
     Component.onDestruction: DeviceModel.release()
 
+    // The shared backend with this instance's per-device settings applied: the popup lists it.
+    readonly property DeviceFilter deviceFilter: DeviceFilter {
+        sourceModel: DeviceModel
+        hiddenKeys: Plasmoid.configuration.hiddenDevices
+        customNames: root.parseNames(Plasmoid.configuration.deviceNames)
+        showDisconnected: Plasmoid.configuration.showDisconnected
+    }
+
+    function parseNames(json) {
+        try {
+            const names = JSON.parse(json);
+            return names !== null && typeof names === "object" ? names : {};
+        } catch (error) {
+            return {};
+        }
+    }
+
     // [{name, iconName, percentage, coarseLevel, charging, parts, model, noiseControl, connected,
-    // lastSeen}, ...] from the shared C++ backend.
-    readonly property var devices: DeviceModel.summary
+    // lastSeen, key}, ...]
+    readonly property var devices: deviceFilter.summary
     // Without the recently disconnected ones, which the popup lists with their last levels.
     readonly property var connectedDevices: devices.filter(device => device.connected)
 
     // The device closest to running out; the panel icon follows it. Chosen in C++ (unit
     // tested): a charging device only counts when every device is charging.
-    readonly property var lowestDevice: devices[DeviceModel.lowestIndex] ?? null
+    readonly property var lowestDevice: devices[deviceFilter.lowestIndex] ?? null
 
     function levelText(percentage, coarseLevel) {
         switch (coarseLevel) {
@@ -100,5 +117,7 @@ PlasmoidItem {
         device: root.lowestDevice
     }
 
-    fullRepresentation: FullRepresentation {}
+    fullRepresentation: FullRepresentation {
+        model: root.deviceFilter
+    }
 }

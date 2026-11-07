@@ -9,6 +9,8 @@ import io.github.giovannilentini.devicebattery
 PlasmaExtras.Representation {
     id: full
 
+    required property DeviceFilter model
+
     // Height of the rows plus a margin above and below: the popup hugs its content.
     readonly property real listHeight: deviceList.contentHeight + Kirigami.Units.largeSpacing * 2
     // The empty-state message decides its own height: a fixed one cut off its text, more so
@@ -46,7 +48,7 @@ PlasmaExtras.Representation {
         ListView {
             id: deviceList
 
-            model: DeviceModel
+            model: full.model
             topMargin: Kirigami.Units.largeSpacing
             bottomMargin: Kirigami.Units.largeSpacing
             spacing: Kirigami.Units.largeSpacing

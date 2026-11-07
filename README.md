@@ -46,6 +46,7 @@ uses.
 | `src/upowerdevice.{h,cpp}` | Maps UPower properties to a `Device` (pure functions, unit tested) |
 | `src/upowersource.{h,cpp}` | Peripheral batteries from UPower |
 | `src/devicelistmodel.{h,cpp}` | The list model: merging, sorting and minimal row updates (unit tested) |
+| `src/devicefilter.{h,cpp}` | Per-instance view of the list: hidden and renamed devices (unit tested) |
 | `src/devicemodel.{h,cpp}` | The QML singleton that feeds both sources into the list model |
 | `package/` | The plasmoid: QML UI, settings and metadata |
 
@@ -167,6 +168,15 @@ systemctl --user restart plasma-plasmashell
   moves out of the overflow menu. A device that is charging never counts as low, and
   the panel shows the emptiest device that is running down.
 
+- **List disconnected devices.** Keep devices you disconnected in the popup, dimmed, with
+  their last levels. They never count as low.
+- **Devices page.** Hide a device (e.g. a controller that always sits on its charger) or
+  give it another name. Settings follow the device across reconnections: Bluetooth devices
+  by their address, others by their name.
+
+Each widget instance has its own settings, so a panel widget and one on the desktop can
+show different devices.
+
 Devices that report only a rough level (many older Logitech mice) show it as a word,
 such as *Low* or *Normal*, instead of a made-up percentage; *Low* and *Critical* always
 count as low.
@@ -211,8 +221,11 @@ cmake -B build -DCMAKE_BUILD_TYPE=Debug
 cmake --build build
 ctest --test-dir build --output-on-failure
 cmake --build build --target clang-format   # needs clang-format
-/usr/lib64/qt6/bin/qmllint --max-warnings 0 --unqualified info -I build/bin package/contents/ui/*.qml
+/usr/lib64/qt6/bin/qmllint --bare --max-warnings 0 --unqualified info -I build/bin -I /usr/lib64/qt6/qml package/contents/ui/*.qml
 ```
+
+`--bare` makes qmllint read the plugin from `build/bin` first; otherwise an installed copy
+of the widget hides new types and properties.
 
 The UPower source is tested against a fake UPower on a private bus, which needs
 `dbus-run-session` (package `dbus-daemon` on Fedora, `dbus` on Arch); without it that

@@ -2,6 +2,7 @@ include(ECMAddTests)
 
 ecm_add_tests(
     aapprotocoltest.cpp
+    devicefiltertest.cpp
     devicelistmodeltest.cpp
     devicetest.cpp
     upowerdevicetest.cpp

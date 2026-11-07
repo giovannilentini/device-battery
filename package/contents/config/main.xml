@@ -14,5 +14,19 @@
             <min>5</min>
             <max>50</max>
         </entry>
+        <entry name="showDisconnected" type="Bool">
+            <label>List recently disconnected devices with their last battery levels</label>
+            <default>true</default>
+        </entry>
+    </group>
+    <group name="Devices">
+        <entry name="hiddenDevices" type="StringList">
+            <label>Keys of the devices not to show</label>
+            <default></default>
+        </entry>
+        <entry name="deviceNames" type="String">
+            <label>Custom device names, as a JSON object from device key to name</label>
+            <default>{}</default>
+        </entry>
     </group>
 </kcfg>

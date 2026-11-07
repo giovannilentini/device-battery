@@ -2,6 +2,7 @@
 add_library(devicebattery_core STATIC
     aapprotocol.cpp
     device.cpp
+    devicefilter.cpp
     devicelistmodel.cpp
     logging.cpp
     upowerdevice.cpp
@@ -33,6 +34,7 @@ set_target_properties(devicebattery_sources PROPERTIES POSITION_INDEPENDENT_CODE
 
 target_sources(devicebatteryplugin PRIVATE
     devicemodel.cpp
+    qmltypes.h
 )
 
 target_link_libraries(devicebatteryplugin PRIVATE

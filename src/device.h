@@ -129,6 +129,11 @@ int lowestDeviceIndex(const QList<Device> &devices);
 // or "hid-38:c4:3a:7b:06:85-battery". Returns an empty string if there is none.
 QString bluetoothAddressIn(const QString &text);
 
+// A key that identifies a device across reconnections and restarts, for per-device settings:
+// "bt:<address>" for Bluetooth devices, else "name:<name>". UPower ids are not stable, e.g.
+// Logitech receivers recreate their object under a new path when the mouse wakes up.
+QString deviceKey(const Device &device);
+
 // Whether `a` and `b` are the same physical device, possibly under another id: same id, same
 // Bluetooth address, or same name and kind.
 bool isSameDevice(const Device &a, const Device &b);

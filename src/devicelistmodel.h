@@ -10,6 +10,9 @@
 // setDevices() applies a new list as minimal row removes, inserts, moves and changes,
 // so the views never rebuild their delegates. Knows nothing about where the devices
 // come from (see DeviceModel), which keeps it testable without D-Bus.
+// The plain snapshot behind DeviceListModel::summary, also used by DeviceFilter.
+QVariantList devicesToVariant(const QList<Device> &devices);
+
 class DeviceListModel : public QAbstractListModel
 {
     Q_OBJECT
@@ -34,6 +37,7 @@ public:
         NoiseControlRole, // "" or "off", "cancellation", "transparency", "adaptive"
         ConnectedRole, // false for a recently disconnected device, shown with its last levels
         LastSeenRole, // for a disconnected device: when it was last seen (QDateTime), else invalid
+        KeyRole, // stable key for per-device settings, see deviceKey()
     };
     Q_ENUM(Role)
 

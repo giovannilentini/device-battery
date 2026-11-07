@@ -244,6 +244,11 @@ QString bluetoothAddressIn(const QString &text)
     return match.captured().replace(QLatin1Char('_'), QLatin1Char(':')).toUpper();
 }
 
+QString deviceKey(const Device &device)
+{
+    return device.address.isEmpty() ? QStringLiteral("name:") + device.name : QStringLiteral("bt:") + device.address;
+}
+
 bool isSameDevice(const Device &a, const Device &b)
 {
     return a.id == b.id || (!a.address.isEmpty() && a.address == b.address) || (a.name == b.name && a.kind == b.kind);

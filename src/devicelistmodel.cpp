@@ -112,6 +112,8 @@ QVariant DeviceListModel::data(const QModelIndex &index, int role) const
         return device.connected;
     case LastSeenRole:
         return lastSeenOf(device);
+    case KeyRole:
+        return deviceKey(device);
     }
     return {};
 }
@@ -129,14 +131,20 @@ QHash<int, QByteArray> DeviceListModel::roleNames() const
         {NoiseControlRole, "noiseControl"},
         {ConnectedRole, "connected"},
         {LastSeenRole, "lastSeen"},
+        {KeyRole, "key"},
     };
 }
 
 QVariantList DeviceListModel::summary() const
 {
+    return devicesToVariant(m_devices);
+}
+
+QVariantList devicesToVariant(const QList<Device> &devices)
+{
     QVariantList list;
-    list.reserve(m_devices.size());
-    for (const Device &device : m_devices) {
+    list.reserve(devices.size());
+    for (const Device &device : devices) {
         list.append(QVariantMap{
             {QStringLiteral("name"), device.name},
             {QStringLiteral("iconName"), iconName(device.kind)},
@@ -148,6 +156,7 @@ QVariantList DeviceListModel::summary() const
             {QStringLiteral("noiseControl"), noiseControlKey(device.noiseControl)},
             {QStringLiteral("connected"), device.connected},
             {QStringLiteral("lastSeen"), lastSeenOf(device)},
+            {QStringLiteral("key"), deviceKey(device)},
         });
     }
     return list;
