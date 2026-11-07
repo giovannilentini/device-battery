@@ -372,6 +372,23 @@ QList<Device> vanishedDevices(const QList<Device> &shown, const QList<Device> &n
     return vanished;
 }
 
+QList<Device> devicesToWarn(const QList<Device> &devices, QSet<QString> &warned, int threshold)
+{
+    QList<Device> toWarn;
+    QSet<QString> low;
+    for (const Device &device : devices) {
+        if (!device.connected || device.charging || device.percentage < 0 || device.percentage > threshold) {
+            continue;
+        }
+        low.insert(device.id);
+        if (!warned.contains(device.id)) {
+            toWarn.append(device);
+        }
+    }
+    warned = low; // re-arms every device that is no longer low
+    return toWarn;
+}
+
 QList<Device> mergeDevices(const QList<Device> &preferred, const QList<Device> &fallback)
 {
     QList<Device> devices = preferred;

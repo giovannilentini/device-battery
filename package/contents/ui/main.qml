@@ -9,8 +9,29 @@ PlasmoidItem {
     id: root
 
     // The shared backend runs only while at least one instance of the widget exists.
-    Component.onCompleted: DeviceModel.acquire()
+    Component.onCompleted: {
+        DeviceModel.acquire();
+        configureNotifications();
+    }
     Component.onDestruction: DeviceModel.release()
+
+    // Low battery notifications are sent by the shared backend (once, however many instances
+    // there are), with texts translated here.
+    function configureNotifications() {
+        DeviceModel.configureNotifications(Plasmoid.configuration.notifyLow, Plasmoid.configuration.lowThreshold,
+            i18nc("@title:notification %1 is a device name", "%1: battery low"),
+            i18nc("@info:notification %1 is a battery level", "%1% left"));
+    }
+
+    Connections {
+        target: Plasmoid.configuration
+        function onNotifyLowChanged() {
+            root.configureNotifications();
+        }
+        function onLowThresholdChanged() {
+            root.configureNotifications();
+        }
+    }
 
     // The shared backend with this instance's per-device settings applied: the popup lists it.
     readonly property DeviceFilter deviceFilter: DeviceFilter {

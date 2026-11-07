@@ -36,6 +36,12 @@ public:
     Q_INVOKABLE void acquire();
     Q_INVOKABLE void release();
 
+    // Low battery notifications for AirPods and Beats. UPower devices are left out: Plasma's
+    // power management already notifies about them. The texts come from QML, which has the
+    // widget's translations: in `title` %1 is the device name, in `body` %1 the level.
+    // Every widget instance calls this; as the backend is shared, the last call wins.
+    Q_INVOKABLE void configureNotifications(bool enabled, int threshold, const QString &title, const QString &body);
+
 private:
     void sync();
     void syncNow(); // without keeping vanished devices around
@@ -49,4 +55,11 @@ private:
     int m_users = 0;
     QTimer m_graceTimer; // runs while vanished devices are still shown, see sync()
     QList<Device> m_recent; // recently disconnected devices, the most recent first
+
+    void notifyLowBatteries();
+    bool m_notify = false;
+    int m_notifyThreshold = 20;
+    QString m_notifyTitle;
+    QString m_notifyBody;
+    QSet<QString> m_warned; // see devicesToWarn()
 };

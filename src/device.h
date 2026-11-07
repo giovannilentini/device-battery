@@ -2,6 +2,7 @@
 #pragma once
 
 #include <QList>
+#include <QSet>
 #include <QString>
 
 // What kind of peripheral a battery belongs to. Only used to pick an icon.
@@ -157,6 +158,12 @@ QList<Device> recentDevicesFromJson(const QByteArray &json);
 // screen for a moment: e.g. Logitech receivers recreate their UPower object, under a new path,
 // when the mouse wakes up, which would otherwise make the row (and the tray icon) blink.
 QList<Device> vanishedDevices(const QList<Device> &shown, const QList<Device> &next);
+
+// The devices of `devices` to warn about because their battery ran low: connected, not
+// charging, with a known level at or below `threshold`, and not warned about yet. `warned`
+// holds the ids already warned about and is updated: a device is warned about again only
+// after it charged or rose above the threshold, or disconnected.
+QList<Device> devicesToWarn(const QList<Device> &devices, QSet<QString> &warned, int threshold);
 
 // Combines the devices of all sources into display order (by name, then id).
 // A device in `preferred` hides any device in `fallback` with the same Bluetooth address.

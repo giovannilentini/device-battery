@@ -250,6 +250,32 @@ private Q_SLOTS:
         QCOMPARE(lowestDeviceIndex({gone}), -1);
     }
 
+    void warnsOnceUntilRearmed()
+    {
+        QSet<QString> warned;
+        Device pods = makeDevice(QStringLiteral("aap:1"), QStringLiteral("AirPods"), 25);
+
+        QVERIFY(devicesToWarn({pods}, warned, 20).isEmpty());
+        pods.percentage = 20;
+        QCOMPARE(devicesToWarn({pods}, warned, 20).size(), 1); // crossed the threshold
+        pods.percentage = 15;
+        QVERIFY(devicesToWarn({pods}, warned, 20).isEmpty()); // already warned
+        pods.charging = true;
+        QVERIFY(devicesToWarn({pods}, warned, 20).isEmpty()); // charging re-arms
+        pods.charging = false;
+        QCOMPARE(devicesToWarn({pods}, warned, 20).size(), 1); // unplugged while still low
+        QVERIFY(devicesToWarn({}, warned, 20).isEmpty()); // disconnected: re-arms too
+        QCOMPARE(devicesToWarn({pods}, warned, 20).size(), 1);
+    }
+
+    void neverWarnsAboutUnknownOrDisconnected()
+    {
+        QSet<QString> warned;
+        const Device unknown = makeDevice(QStringLiteral("aap:1"), QStringLiteral("A"), -1);
+        const Device gone = makeGone(QStringLiteral("aap:2"), QStringLiteral("B"), 1, 5);
+        QVERIFY(devicesToWarn({unknown, gone}, warned, 20).isEmpty());
+    }
+
     void lowestDevice_data()
     {
         QTest::addColumn<QList<Device>>("devices");

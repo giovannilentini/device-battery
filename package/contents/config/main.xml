@@ -14,6 +14,10 @@
             <min>5</min>
             <max>50</max>
         </entry>
+        <entry name="notifyLow" type="Bool">
+            <label>Notify when the battery of AirPods or Beats runs low</label>
+            <default>true</default>
+        </entry>
         <entry name="showDisconnected" type="Bool">
             <label>List recently disconnected devices with their last battery levels</label>
             <default>true</default>

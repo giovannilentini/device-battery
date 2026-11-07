@@ -3,6 +3,9 @@
 
 #include "logging.h"
 
+#include <QDBusConnection>
+#include <QDBusMessage>
+#include <QDBusPendingCall>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
@@ -33,6 +36,7 @@ DeviceModel::DeviceModel(QObject *parent)
     m_graceTimer.setInterval(GracePeriod);
     connect(&m_graceTimer, &QTimer::timeout, this, &DeviceModel::syncNow);
     loadRecent();
+    connect(this, &DeviceListModel::summaryChanged, this, &DeviceModel::notifyLowBatteries);
 }
 
 DeviceModel::~DeviceModel() = default;
@@ -137,5 +141,44 @@ void DeviceModel::saveRecent() const
     QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly) || file.write(recentDevicesToJson(m_recent)) < 0 || !file.commit()) {
         qCWarning(DEVICEBATTERY) << "Cannot save the recently disconnected devices to" << path << ":" << file.errorString();
+    }
+}
+
+void DeviceModel::configureNotifications(bool enabled, int threshold, const QString &title, const QString &body)
+{
+    m_notify = enabled;
+    m_notifyThreshold = threshold;
+    m_notifyTitle = title;
+    m_notifyBody = body;
+    notifyLowBatteries();
+}
+
+void DeviceModel::notifyLowBatteries()
+{
+    QList<Device> airPods;
+    std::ranges::copy_if(devices(), std::back_inserter(airPods), [](const Device &device) {
+        return device.id.startsWith(QLatin1String("aap:"));
+    });
+    // Runs even while disabled, so turning notifications on does not warn about a battery
+    // that was already low.
+    const QList<Device> toWarn = devicesToWarn(airPods, m_warned, m_notifyThreshold);
+    if (!m_notify || m_notifyTitle.isEmpty()) {
+        return;
+    }
+    for (const Device &device : toWarn) {
+        qCDebug(DEVICEBATTERY) << "Low battery notification for" << device.name << device.percentage;
+        QDBusMessage notify = QDBusMessage::createMethodCall(QStringLiteral("org.freedesktop.Notifications"),
+                                                             QStringLiteral("/org/freedesktop/Notifications"),
+                                                             QStringLiteral("org.freedesktop.Notifications"),
+                                                             QStringLiteral("Notify"));
+        notify << QStringLiteral("Device Battery") // app_name
+               << 0u // replaces_id
+               << QStringLiteral("battery-caution") // app_icon
+               << m_notifyTitle.arg(device.name) // summary
+               << m_notifyBody.arg(device.percentage) // body
+               << QStringList() // actions
+               << QVariantMap{{QStringLiteral("urgency"), QVariant::fromValue<uchar>(1)}} // normal
+               << -1; // default timeout
+        QDBusConnection::sessionBus().asyncCall(notify);
     }
 }

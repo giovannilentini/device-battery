@@ -168,6 +168,10 @@ systemctl --user restart plasma-plasmashell
   moves out of the overflow menu. A device that is charging never counts as low, and
   the panel shows the emptiest device that is running down.
 
+- **Notify when AirPods or Beats run low.** One notification when the earbud in use
+  reaches the *Low battery at* level, and again only after it charged. Plasma already
+  notifies about UPower devices (mice, keyboards, …), so they are left out. With several
+  widget instances, the one configured last decides.
 - **List disconnected devices.** Keep devices you disconnected in the popup, dimmed, with
   their last levels. They never count as low.
 - **Devices page.** Hide a device (e.g. a controller that always sits on its charger) or
