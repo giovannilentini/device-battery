@@ -1,6 +1,7 @@
 import QtQuick
 import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.plasmoid
+import org.kde.kcmutils as KCMUtils
 import io.github.giovannilentini.devicebattery
 
 import "levels.js" as Levels
@@ -132,6 +133,20 @@ PlasmoidItem {
                 : i18nc("@info:tooltip device name: battery level", "%1: %2", device.name, level);
         }).join("\n");
     }
+
+    Plasmoid.contextualActions: [
+        PlasmaCore.Action {
+            text: i18nc("@action:inmenu", "Forget Disconnected Devices")
+            icon.name: "edit-clear-history"
+            visible: root.devices.length > root.connectedDevices.length
+            onTriggered: DeviceModel.forgetDisconnected()
+        },
+        PlasmaCore.Action {
+            text: i18nc("@action:inmenu", "&Bluetooth Settings…")
+            icon.name: "preferences-system-bluetooth"
+            onTriggered: KCMUtils.KCMLauncher.openSystemSettings("kcm_bluetooth")
+        }
+    ]
 
     compactRepresentation: CompactRepresentation {
         plasmoidItem: root

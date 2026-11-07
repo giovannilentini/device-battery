@@ -178,6 +178,9 @@ systemctl --user restart plasma-plasmashell
   give it another name. Settings follow the device across reconnections: Bluetooth devices
   by their address, others by their name.
 
+Right-click the widget for **Bluetooth Settings…** and, while disconnected devices are
+listed, **Forget Disconnected Devices**.
+
 Each widget instance has its own settings, so a panel widget and one on the desktop can
 show different devices.
 

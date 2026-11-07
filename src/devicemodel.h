@@ -40,6 +40,9 @@ public:
     // power management already notifies about them. The texts come from QML, which has the
     // widget's translations: in `title` %1 is the device name, in `body` %1 the level.
     // Every widget instance calls this; as the backend is shared, the last call wins.
+    // Drops the recently disconnected devices, also from the cache file.
+    Q_INVOKABLE void forgetDisconnected();
+
     Q_INVOKABLE void configureNotifications(bool enabled, int threshold, const QString &title, const QString &body);
 
 private:

@@ -144,6 +144,16 @@ void DeviceModel::saveRecent() const
     }
 }
 
+void DeviceModel::forgetDisconnected()
+{
+    if (m_recent.isEmpty()) {
+        return;
+    }
+    m_recent.clear();
+    saveRecent();
+    setDevices(connectedDevices());
+}
+
 void DeviceModel::configureNotifications(bool enabled, int threshold, const QString &title, const QString &body)
 {
     m_notify = enabled;
