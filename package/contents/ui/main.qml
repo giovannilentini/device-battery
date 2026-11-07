@@ -12,8 +12,11 @@ PlasmoidItem {
     Component.onCompleted: DeviceModel.acquire()
     Component.onDestruction: DeviceModel.release()
 
-    // [{name, iconName, percentage, coarseLevel, charging, parts}, ...] from the shared C++ backend.
+    // [{name, iconName, percentage, coarseLevel, charging, parts, model, noiseControl, connected,
+    // lastSeen}, ...] from the shared C++ backend.
     readonly property var devices: DeviceModel.summary
+    // Without the recently disconnected ones, which the popup lists with their last levels.
+    readonly property var connectedDevices: devices.filter(device => device.connected)
 
     // The device closest to running out; the panel icon follows it. Chosen in C++ (unit
     // tested): a charging device only counts when every device is charging.
@@ -67,7 +70,7 @@ PlasmoidItem {
 
     // In the system tray: hidden with no devices, promoted when a battery is low.
     Plasmoid.status: {
-        if (devices.length === 0) {
+        if (connectedDevices.length === 0) {
             return PlasmaCore.Types.PassiveStatus;
         }
         return batteryLow ? PlasmaCore.Types.NeedsAttentionStatus : PlasmaCore.Types.ActiveStatus;
@@ -75,10 +78,10 @@ PlasmoidItem {
 
     toolTipMainText: Plasmoid.title
     toolTipSubText: {
-        if (devices.length === 0) {
+        if (connectedDevices.length === 0) {
             return i18nc("@info:tooltip", "No devices with battery information");
         }
-        return devices.map(device => {
+        return connectedDevices.map(device => {
             // Earbuds list each part ("AirPods: Left 40%, Right 80%, Case 10%, charging"),
             // other devices their single level.
             if (device.parts.length > 0) {

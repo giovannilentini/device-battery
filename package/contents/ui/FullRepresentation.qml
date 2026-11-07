@@ -31,6 +31,17 @@ PlasmaExtras.Representation {
 
     collapseMarginsHint: true
 
+    // For "Disconnected 2 h ago": refreshed once a minute, only while the popup is open.
+    property date now: new Date()
+    onVisibleChanged: now = new Date()
+
+    Timer {
+        interval: 60000
+        repeat: true
+        running: full.visible
+        onTriggered: full.now = new Date()
+    }
+
     contentItem: PlasmaComponents3.ScrollView {
         ListView {
             id: deviceList
@@ -43,6 +54,7 @@ PlasmaExtras.Representation {
 
             delegate: DeviceDelegate {
                 width: ListView.view.width
+                now: full.now
             }
 
             PlasmaExtras.PlaceholderMessage {

@@ -5,6 +5,26 @@
 
 using Component = BatteryPart::Component;
 
+namespace
+{
+Device makeDevice(const QString &id, const QString &name, int percentage = -1)
+{
+    Device device;
+    device.id = id;
+    device.name = name;
+    device.percentage = percentage;
+    return device;
+}
+
+Device makeGone(const QString &id, const QString &name, qint64 lastSeen, int percentage = -1)
+{
+    Device device = makeDevice(id, name, percentage);
+    device.connected = false;
+    device.lastSeen = lastSeen;
+    return device;
+}
+}
+
 class DeviceTest : public QObject
 {
     Q_OBJECT
@@ -151,6 +171,83 @@ private Q_SLOTS:
         QFETCH(QString, modalias);
         QFETCH(QString, model);
         QCOMPARE(appleModelName(modalias), model);
+    }
+
+    void recentDevicesKeepLastLevels()
+    {
+        Device airPods = makeDevice(QStringLiteral("aap:1"), QStringLiteral("AirPods"));
+        airPods.address = QStringLiteral("38:C4:3A:7B:06:85");
+        applyBatteryParts(airPods, {{Component::Left, 40, false, Placement::InEar}, {Component::Case, 60, true}});
+        airPods.noiseControl = NoiseControl::Transparency;
+
+        const QList<Device> recent = updateRecentDevices({}, {airPods}, {}, 1000);
+        QCOMPARE(recent.size(), 1);
+        const Device &kept = recent.first();
+        QVERIFY(!kept.connected);
+        QCOMPARE(kept.lastSeen, 1000);
+        QCOMPARE(kept.percentage, 40);
+        QCOMPARE(kept.noiseControl, NoiseControl::Unknown);
+        QCOMPARE(kept.parts.size(), 2);
+        QVERIFY(!kept.parts.at(1).charging); // a last level, not charging any more
+        QCOMPARE(kept.parts.at(0).placement, Placement::Unknown);
+    }
+
+    void recentDevicesDropReconnectedAndOld()
+    {
+        QList<Device> recent;
+        for (int i = 0; i < MaxRecentDevices; ++i) {
+            recent.append(makeGone(QStringLiteral("old%1").arg(i), QStringLiteral("Old %1").arg(i), 100 - i));
+        }
+        // "Old 0" is back under a new id (e.g. a Logitech receiver), a new device just went away.
+        const Device back = makeDevice(QStringLiteral("new-id"), QStringLiteral("Old 0"));
+        const Device gone = makeDevice(QStringLiteral("gone"), QStringLiteral("Gone"));
+        const QList<Device> updated = updateRecentDevices(recent, {gone}, {back}, 500);
+
+        QCOMPARE(updated.size(), MaxRecentDevices);
+        QCOMPARE(updated.first().id, QStringLiteral("gone")); // the most recent first
+        QVERIFY(std::ranges::none_of(updated, [](const Device &device) {
+            return device.name == QStringLiteral("Old 0");
+        }));
+        QCOMPARE(updated.last().id, QStringLiteral("old%1").arg(MaxRecentDevices - 1));
+    }
+
+    void recentDevicesRoundTripThroughJson()
+    {
+        Device mouse = makeDevice(QStringLiteral("upower:/mouse"), QStringLiteral("Mouse"), 30);
+        mouse.kind = DeviceKind::Mouse;
+        mouse.coarseLevel = CoarseLevel::Low;
+        Device airPods = makeDevice(QStringLiteral("aap:1"), QStringLiteral("AirPods"));
+        airPods.address = QStringLiteral("38:C4:3A:7B:06:85");
+        applyBatteryParts(airPods, {{Component::Left, 40, false}, {Component::Right, -1, false}});
+        airPods.model = QStringLiteral("AirPods Pro");
+        const QList<Device> recent = updateRecentDevices({}, {mouse, airPods}, {}, 1234);
+
+        QCOMPARE(recentDevicesFromJson(recentDevicesToJson(recent)), recent);
+    }
+
+    void recentDevicesSkipMalformedJson_data()
+    {
+        QTest::addColumn<QByteArray>("json");
+        QTest::newRow("not json") << QByteArray("garbage");
+        QTest::newRow("not an array") << QByteArray(R"({"id": "x"})");
+        QTest::newRow("no id") << QByteArray(R"([{"lastSeen": 5}])");
+        QTest::newRow("no time") << QByteArray(R"([{"id": "x"}])");
+        QTest::newRow("bad kind") << QByteArray(R"([{"id": "x", "lastSeen": 5, "kind": 99}])");
+        QTest::newRow("bad level") << QByteArray(R"([{"id": "x", "lastSeen": 5, "percentage": 250}])");
+    }
+
+    void recentDevicesSkipMalformedJson()
+    {
+        QFETCH(QByteArray, json);
+        QVERIFY(recentDevicesFromJson(json).isEmpty());
+    }
+
+    void disconnectedDeviceIsNeverTheLowest()
+    {
+        const Device gone = makeGone(QStringLiteral("a"), QStringLiteral("A"), 1, 5);
+        const Device mouse = makeDevice(QStringLiteral("b"), QStringLiteral("B"), 50);
+        QCOMPARE(lowestDeviceIndex({gone, mouse}), 1);
+        QCOMPARE(lowestDeviceIndex({gone}), -1);
     }
 
     void lowestDevice_data()

@@ -20,6 +20,9 @@
 // is created and release() when it is destroyed. Once the last one is gone, the D-Bus
 // subscriptions and AAP sessions stop, so a removed widget no longer occupies the AirPods'
 // single AAP connection.
+//
+// A device that disconnects stays listed with its last levels, below the connected ones (see
+// updateRecentDevices()). These are kept in a small cache file, so they survive a restart.
 class DeviceModel : public DeviceListModel
 {
     Q_OBJECT
@@ -36,9 +39,14 @@ public:
 private:
     void sync();
     void syncNow(); // without keeping vanished devices around
+    QList<Device> connectedDevices() const;
+    QList<Device> withRecent(const QList<Device> &connected) const;
+    void loadRecent();
+    void saveRecent() const;
 
     std::unique_ptr<UPowerSource> m_upower;
     std::unique_ptr<AirPodsSource> m_airPods;
     int m_users = 0;
     QTimer m_graceTimer; // runs while vanished devices are still shown, see sync()
+    QList<Device> m_recent; // recently disconnected devices, the most recent first
 };

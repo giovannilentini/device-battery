@@ -3,6 +3,9 @@
 
 #include <QCollator>
 #include <QHash>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QLocale>
 #include <QRegularExpression>
 #include <QSet>
@@ -218,7 +221,7 @@ int lowestDeviceIndex(const QList<Device> &devices)
     bool lowestCharging = true;
     for (int i = 0; i < devices.size(); ++i) {
         const Device &device = devices.at(i);
-        if (device.percentage < 0) {
+        if (device.percentage < 0 || !device.connected) {
             continue;
         }
         const bool better =
@@ -241,12 +244,121 @@ QString bluetoothAddressIn(const QString &text)
     return match.captured().replace(QLatin1Char('_'), QLatin1Char(':')).toUpper();
 }
 
+bool isSameDevice(const Device &a, const Device &b)
+{
+    return a.id == b.id || (!a.address.isEmpty() && a.address == b.address) || (a.name == b.name && a.kind == b.kind);
+}
+
+QList<Device> updateRecentDevices(const QList<Device> &recent, const QList<Device> &gone, const QList<Device> &current, qint64 now)
+{
+    QList<Device> result;
+    for (Device device : gone) {
+        device.connected = false;
+        device.lastSeen = now;
+        // A last level, not a live one: nothing charges or sits in an ear any more.
+        device.charging = false;
+        device.noiseControl = NoiseControl::Unknown;
+        for (BatteryPart &part : device.parts) {
+            part.charging = false;
+            part.placement = Placement::Unknown;
+        }
+        result.append(device);
+    }
+    for (const Device &device : recent) {
+        const auto matches = [&device](const Device &other) {
+            return isSameDevice(device, other);
+        };
+        if (std::ranges::none_of(result, matches) && std::ranges::none_of(current, matches)) {
+            result.append(device);
+        }
+    }
+    std::ranges::stable_sort(result, std::ranges::greater{}, &Device::lastSeen);
+    if (result.size() > MaxRecentDevices) {
+        result.resize(MaxRecentDevices);
+    }
+    return result;
+}
+
+QByteArray recentDevicesToJson(const QList<Device> &recent)
+{
+    QJsonArray devices;
+    for (const Device &device : recent) {
+        QJsonArray parts;
+        for (const BatteryPart &part : device.parts) {
+            parts.append(QJsonObject{
+                {QStringLiteral("component"), static_cast<int>(part.component)},
+                {QStringLiteral("percentage"), part.percentage},
+            });
+        }
+        devices.append(QJsonObject{
+            {QStringLiteral("id"), device.id},
+            {QStringLiteral("address"), device.address},
+            {QStringLiteral("name"), device.name},
+            {QStringLiteral("kind"), static_cast<int>(device.kind)},
+            {QStringLiteral("percentage"), device.percentage},
+            {QStringLiteral("coarseLevel"), static_cast<int>(device.coarseLevel)},
+            {QStringLiteral("parts"), parts},
+            {QStringLiteral("model"), device.model},
+            {QStringLiteral("lastSeen"), device.lastSeen},
+        });
+    }
+    return QJsonDocument(devices).toJson(QJsonDocument::Compact);
+}
+
+QList<Device> recentDevicesFromJson(const QByteArray &json)
+{
+    // Enums are stored as numbers: accept only values the enum has.
+    const auto inRange = [](int value, auto last) {
+        return value >= 0 && value <= static_cast<int>(last);
+    };
+    const auto validLevel = [](int level) {
+        return level >= -1 && level <= 100;
+    };
+
+    QList<Device> recent;
+    for (const QJsonValue &value : QJsonDocument::fromJson(json).array()) {
+        const QJsonObject object = value.toObject();
+        Device device;
+        device.id = object.value(QStringLiteral("id")).toString();
+        device.address = object.value(QStringLiteral("address")).toString();
+        device.name = object.value(QStringLiteral("name")).toString();
+        device.model = object.value(QStringLiteral("model")).toString();
+        device.percentage = object.value(QStringLiteral("percentage")).toInt(-1);
+        device.lastSeen = object.value(QStringLiteral("lastSeen")).toInteger();
+        device.connected = false;
+        const int kind = object.value(QStringLiteral("kind")).toInt();
+        const int coarseLevel = object.value(QStringLiteral("coarseLevel")).toInt();
+        if (device.id.isEmpty() || device.lastSeen <= 0 || !validLevel(device.percentage) || !inRange(kind, DeviceKind::MediaPlayer)
+            || !inRange(coarseLevel, CoarseLevel::Full)) {
+            continue;
+        }
+        device.kind = static_cast<DeviceKind>(kind);
+        device.coarseLevel = static_cast<CoarseLevel>(coarseLevel);
+        for (const QJsonValue &partValue : object.value(QStringLiteral("parts")).toArray()) {
+            const QJsonObject part = partValue.toObject();
+            const int component = part.value(QStringLiteral("component")).toInt(-1);
+            const int level = part.value(QStringLiteral("percentage")).toInt(-1);
+            if (inRange(component, BatteryPart::Component::Case) && validLevel(level)) {
+                BatteryPart entry;
+                entry.component = static_cast<BatteryPart::Component>(component);
+                entry.percentage = level;
+                device.parts.append(entry);
+            }
+        }
+        recent.append(device);
+        if (recent.size() == MaxRecentDevices) {
+            break;
+        }
+    }
+    return recent;
+}
+
 QList<Device> vanishedDevices(const QList<Device> &shown, const QList<Device> &next)
 {
     QList<Device> vanished;
     for (const Device &old : shown) {
         const bool replaced = std::ranges::any_of(next, [&old](const Device &device) {
-            return device.id == old.id || (!old.address.isEmpty() && device.address == old.address) || (device.name == old.name && device.kind == old.kind);
+            return isSameDevice(old, device);
         });
         if (!replaced) {
             vanished.append(old);

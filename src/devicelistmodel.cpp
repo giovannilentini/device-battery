@@ -3,12 +3,18 @@
 
 #include "logging.h"
 
+#include <QDateTime>
 #include <QSet>
 
 #include <algorithm>
 
 namespace
 {
+QDateTime lastSeenOf(const Device &device)
+{
+    return device.connected ? QDateTime() : QDateTime::fromMSecsSinceEpoch(device.lastSeen);
+}
+
 QVariantList partsToVariant(const QList<BatteryPart> &parts)
 {
     QVariantList list;
@@ -53,6 +59,12 @@ QList<int> changedRoles(const Device &before, const Device &after)
     if (before.noiseControl != after.noiseControl) {
         roles << DeviceListModel::NoiseControlRole;
     }
+    if (before.connected != after.connected) {
+        roles << DeviceListModel::ConnectedRole;
+    }
+    if (before.connected != after.connected || before.lastSeen != after.lastSeen) {
+        roles << DeviceListModel::LastSeenRole;
+    }
     return roles;
 }
 }
@@ -96,6 +108,10 @@ QVariant DeviceListModel::data(const QModelIndex &index, int role) const
         return device.model;
     case NoiseControlRole:
         return noiseControlKey(device.noiseControl);
+    case ConnectedRole:
+        return device.connected;
+    case LastSeenRole:
+        return lastSeenOf(device);
     }
     return {};
 }
@@ -111,6 +127,8 @@ QHash<int, QByteArray> DeviceListModel::roleNames() const
         {CoarseLevelRole, "coarseLevel"},
         {ModelRole, "model"},
         {NoiseControlRole, "noiseControl"},
+        {ConnectedRole, "connected"},
+        {LastSeenRole, "lastSeen"},
     };
 }
 
@@ -128,6 +146,8 @@ QVariantList DeviceListModel::summary() const
             {QStringLiteral("parts"), partsToVariant(device.parts)},
             {QStringLiteral("model"), device.model},
             {QStringLiteral("noiseControl"), noiseControlKey(device.noiseControl)},
+            {QStringLiteral("connected"), device.connected},
+            {QStringLiteral("lastSeen"), lastSeenOf(device)},
         });
     }
     return list;

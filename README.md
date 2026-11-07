@@ -10,7 +10,9 @@ Apple's *Batteries* widget:
   receiver (e.g. Logitech Unifying/Lightspeed)
 
 It runs in the panel or the system tray. It shows the device that's closest to
-running out inside a ring, and the popup lists every device. In the system tray it
+running out inside a ring, and the popup lists every device. Devices you disconnected
+stay listed, dimmed, with their last levels and when they were last seen ("Disconnected
+2 h ago"), so you can check the AirPods in their case before you leave. In the system tray it
 hides when nothing is connected and comes forward when a battery gets low.
 
 ## Why AirPods need special handling
@@ -65,6 +67,9 @@ uses.
   and reports only the roles that changed, so the popup never rebuilds its delegates.
   A device that disappears stays listed for 2 seconds, so one that comes right back
   (e.g. a Logitech mouse waking up) does not make the row or the tray icon blink.
+- **Remembers disconnected devices cheaply.** Their last levels are written to
+  `~/.cache/devicebattery/recent-devices.json` only when a device disconnects (at most
+  8 devices are kept).
 - **Survives daemon restarts.** If `bluetoothd` or `upowerd` restarts, the widget drops
   what it knew and reads the devices again.
 

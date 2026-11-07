@@ -78,6 +78,8 @@ struct Device {
     QList<BatteryPart> parts; // empty for single-battery devices
     QString model; // product name if known and not just the device name, e.g. "AirPods Pro (2nd generation)"
     NoiseControl noiseControl = NoiseControl::Unknown;
+    bool connected = true; // false for a recently disconnected device (see updateRecentDevices())
+    qint64 lastSeen = 0; // for a disconnected device: when it was last seen, in ms since the epoch
 
     bool operator==(const Device &) const = default;
 };
@@ -118,13 +120,32 @@ void applyPlacements(QList<BatteryPart> &parts, Placement primary, Placement sec
 // The device counts as charging only if the part shown is.
 void applyBatteryParts(Device &device, QList<BatteryPart> parts);
 
-// Index of the device closest to running out, or -1 if no device has a known level.
+// Index of the device closest to running out, or -1 if no connected device has a known level.
 // Discharging devices come first: a charging device is picked only if all of them charge.
+// Disconnected devices never count.
 int lowestDeviceIndex(const QList<Device> &devices);
 
 // Extracts a Bluetooth MAC address from strings such as "/org/bluez/hci0/dev_38_C4_3A_7B_06_85"
 // or "hid-38:c4:3a:7b:06:85-battery". Returns an empty string if there is none.
 QString bluetoothAddressIn(const QString &text);
+
+// Whether `a` and `b` are the same physical device, possibly under another id: same id, same
+// Bluetooth address, or same name and kind.
+bool isSameDevice(const Device &a, const Device &b);
+
+// Most recently disconnected devices that are kept, with their last levels.
+constexpr int MaxRecentDevices = 8;
+
+// The recently disconnected devices after `gone` disappeared at `now` (ms since the epoch)
+// while `current` are connected: `gone` are added as disconnected, with their last levels
+// but no longer charging, devices that are connected again are dropped, and only the
+// MaxRecentDevices most recent are kept, the most recent first.
+QList<Device> updateRecentDevices(const QList<Device> &recent, const QList<Device> &gone, const QList<Device> &current, qint64 now);
+
+// Recently disconnected devices to and from the cache file, so they survive a restart.
+// Reading skips anything malformed; a file that is not valid JSON gives an empty list.
+QByteArray recentDevicesToJson(const QList<Device> &recent);
+QList<Device> recentDevicesFromJson(const QByteArray &json);
 
 // The devices of `shown` that are missing from `next` and that no device of `next` takes the
 // place of (same Bluetooth address, or same name and kind). Used to keep a vanished device on

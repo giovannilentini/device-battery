@@ -8,7 +8,7 @@ import org.kde.plasma.components as PlasmaComponents3
 // One device in the popup:
 //
 //   ( icon )  AirPods                          97%
-//             AirPods Pro · Noise cancellation
+//             AirPods Pro · Noise cancellation   (or "Disconnected 2 h ago")
 //             (o) Left 97%  (o) Right 100%  (o) Case 40%
 Item {
     id: root
@@ -22,9 +22,31 @@ Item {
     required property var parts
     required property string model
     required property string noiseControl
+    required property bool connected
+    required property var lastSeen // Date, for a disconnected device
+
+    // The current time, for "2 h ago"; set by the list so all rows share one timer.
+    property date now: new Date()
 
     // "AirPods Pro · Noise cancellation": what we know about the device besides its levels.
-    readonly property string details: [model, noiseControlText(noiseControl)].filter(text => text.length > 0).join(" · ")
+    readonly property string details: (connected ? [model, noiseControlText(noiseControl)] : [disconnectedText(), model])
+        .filter(text => text.length > 0).join(" · ")
+
+    function disconnectedText() {
+        const minutes = Math.max(0, Math.floor((now - lastSeen) / 60000));
+        if (minutes < 1) {
+            return i18nc("@info:status", "Disconnected just now");
+        }
+        if (minutes < 60) {
+            return i18ncp("@info:status", "Disconnected %1 min ago", "Disconnected %1 min ago", minutes);
+        }
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) {
+            return i18ncp("@info:status", "Disconnected %1 h ago", "Disconnected %1 h ago", hours);
+        }
+        const days = Math.floor(hours / 24);
+        return i18ncp("@info:status", "Disconnected yesterday", "Disconnected %1 days ago", days);
+    }
 
     function noiseControlText(mode) {
         switch (mode) {
@@ -41,6 +63,9 @@ Item {
     }
 
     implicitHeight: layout.implicitHeight
+
+    // A disconnected device shows its last levels, dimmed.
+    opacity: connected ? 1 : 0.6
 
     function partName(component) {
         switch (component) {

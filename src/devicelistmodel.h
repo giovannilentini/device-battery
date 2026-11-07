@@ -16,7 +16,7 @@ class DeviceListModel : public QAbstractListModel
 
     Q_PROPERTY(int count READ count NOTIFY countChanged)
     // Plain snapshot of every device for the tooltip and panel icon:
-    // [{name, iconName, percentage, coarseLevel, charging, parts, model, noiseControl}, ...], as the roles
+    // [{name, iconName, percentage, coarseLevel, charging, parts, model, noiseControl, connected, lastSeen}, ...], as the roles
     Q_PROPERTY(QVariantList summary READ summary NOTIFY summaryChanged)
     // Index in `summary` of the device closest to running out, or -1 (see lowestDeviceIndex()).
     // Changes together with `summary`.
@@ -32,6 +32,8 @@ public:
         CoarseLevelRole, // "" or a rough level ("low", "normal", ...) shown instead of the percentage
         ModelRole, // product name, or "" if unknown or already in the name
         NoiseControlRole, // "" or "off", "cancellation", "transparency", "adaptive"
+        ConnectedRole, // false for a recently disconnected device, shown with its last levels
+        LastSeenRole, // for a disconnected device: when it was last seen (QDateTime), else invalid
     };
     Q_ENUM(Role)
 
