@@ -59,6 +59,18 @@ PlasmaExtras.Representation {
                 now: full.now
             }
 
+            // Disconnected devices come last, under their own heading.
+            section.property: "connected"
+            section.delegate: Loader {
+                required property string section
+                width: ListView.view.width
+                active: section === "false" // no heading above the connected devices
+                sourceComponent: PlasmaExtras.ListSectionHeader {
+                    leftPadding: Kirigami.Units.largeSpacing // line up with the rows
+                    text: i18nc("@title:group", "Disconnected")
+                }
+            }
+
             PlasmaExtras.PlaceholderMessage {
                 id: placeholder
                 anchors.centerIn: parent

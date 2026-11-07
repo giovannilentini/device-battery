@@ -8,8 +8,11 @@ import org.kde.plasma.components as PlasmaComponents3
 // One device in the popup:
 //
 //   ( icon )  AirPods                          97%
-//             AirPods Pro · Noise cancellation   (or "Disconnected 2 h ago")
-//             (o) Left 97%  (o) Right 100%  (o) Case 40%
+//             Noise cancellation
+//             (L) 97%   (R) 100%   (C) 40%
+//
+// At most one short status line ("Charging", the noise control mode, or "3 h ago" for a
+// disconnected device). The model is in the row's tooltip.
 Item {
     id: root
 
@@ -25,27 +28,35 @@ Item {
     required property bool connected
     required property var lastSeen // Date, for a disconnected device
 
-    // The current time, for "2 h ago"; set by the list so all rows share one timer.
+    // The current time, for "3 h ago"; set by the list so all rows share one timer.
     property date now: new Date()
 
-    // "AirPods Pro · Noise cancellation": what we know about the device besides its levels.
-    readonly property string details: (connected ? [model, noiseControlText(noiseControl)] : [disconnectedText(), model])
-        .filter(text => text.length > 0).join(" · ")
+    readonly property string status: {
+        if (!connected) {
+            return lastSeenText();
+        }
+        if (charging && parts.length === 0) {
+            return i18nc("@info:status", "Charging");
+        }
+        return noiseControlText(noiseControl);
+    }
 
-    function disconnectedText() {
+    implicitHeight: layout.implicitHeight
+
+    function lastSeenText() {
         const minutes = Math.max(0, Math.floor((now - lastSeen) / 60000));
         if (minutes < 1) {
-            return i18nc("@info:status", "Disconnected just now");
+            return i18nc("@info:status disconnected device", "Just now");
         }
         if (minutes < 60) {
-            return i18ncp("@info:status", "Disconnected %1 min ago", "Disconnected %1 min ago", minutes);
+            return i18ncp("@info:status disconnected device", "%1 min ago", "%1 min ago", minutes);
         }
         const hours = Math.floor(minutes / 60);
         if (hours < 24) {
-            return i18ncp("@info:status", "Disconnected %1 h ago", "Disconnected %1 h ago", hours);
+            return i18ncp("@info:status disconnected device", "%1 h ago", "%1 h ago", hours);
         }
         const days = Math.floor(hours / 24);
-        return i18ncp("@info:status", "Disconnected yesterday", "Disconnected %1 days ago", days);
+        return i18ncp("@info:status disconnected device", "Yesterday", "%1 days ago", days);
     }
 
     function noiseControlText(mode) {
@@ -62,22 +73,25 @@ Item {
         return "";
     }
 
-    implicitHeight: layout.implicitHeight
-
-    // A disconnected device shows its last levels, dimmed.
-    opacity: connected ? 1 : 0.6
-
-    function partName(component) {
+    function partShortName(component) {
         switch (component) {
         case "left":
-            return i18nc("@label left earbud", "Left");
+            return i18nc("@label short for left earbud", "L");
         case "right":
-            return i18nc("@label right earbud", "Right");
+            return i18nc("@label short for right earbud", "R");
         case "case":
-            return i18nc("@label charging case", "Case");
+            return i18nc("@label short for charging case", "C");
         }
         return "";
     }
+
+    HoverHandler {
+        id: hover
+    }
+
+    PlasmaComponents3.ToolTip.text: root.model
+    PlasmaComponents3.ToolTip.visible: hover.hovered && root.model.length > 0
+    PlasmaComponents3.ToolTip.delay: Kirigami.Units.toolTipDelay
 
     RowLayout {
         id: layout
@@ -94,6 +108,7 @@ Item {
             percentage: root.percentage
             coarseLevel: root.coarseLevel
             charging: root.charging
+            stale: !root.connected
 
             Kirigami.Icon {
                 anchors.fill: parent
@@ -119,36 +134,30 @@ Item {
                 PercentLabel {
                     percentage: root.percentage
                     coarseLevel: root.coarseLevel
-                    font.bold: true
+                    font.bold: root.connected
+                    opacity: root.connected ? 1 : 0.7
                 }
             }
 
             PlasmaComponents3.Label {
                 Layout.fillWidth: true
                 visible: text.length > 0
-                text: root.details
+                text: root.status
                 textFormat: Text.PlainText
                 elide: Text.ElideRight
                 opacity: 0.7
                 font: Kirigami.Theme.smallFont
             }
 
-            PlasmaComponents3.Label {
-                visible: root.charging && root.parts.length === 0
-                text: i18nc("@info:status", "Charging")
-                opacity: 0.7
-                font: Kirigami.Theme.smallFont
-            }
-
-            // Only earbuds have parts: other devices never build the slots below (three rings
-            // and six labels per row that would stay hidden).
+            // Only earbuds have parts: other devices never build the slots below.
             Loader {
                 Layout.fillWidth: true
                 active: root.parts.length > 0
                 visible: active
 
-                sourceComponent: Flow {
-                    spacing: Kirigami.Units.largeSpacing
+                // Three equal columns, so the row never wraps and the parts line up between devices.
+                sourceComponent: RowLayout {
+                    spacing: Kirigami.Units.smallSpacing
 
                     // One fixed slot per component instead of a Repeater over `parts`: `parts` is a
                     // new list on every update, which would recreate the rings each time and skip
@@ -156,40 +165,36 @@ Item {
                     Repeater {
                         model: ["left", "right", "case"]
 
-                        delegate: Row {
+                        delegate: RowLayout {
                             id: part
 
                             required property string modelData
                             readonly property var info: root.parts.find(entry => entry.component === part.modelData) ?? null
 
-                            // An earbud that is out of the ear or in the case is dimmed, so the
-                            // ones in use stand out (only with in-ear detection).
-                            readonly property bool idle: info !== null && (info.placement === "out" || info.placement === "case")
-
-                            visible: info !== null
-                            opacity: idle ? 0.5 : 1
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1 // equal shares
                             spacing: Kirigami.Units.smallSpacing
+                            opacity: info !== null ? 1 : 0 // keep the column, so the others stay aligned
 
                             BatteryRing {
-                                width: Kirigami.Units.iconSizes.smallMedium
-                                height: width
-                                anchors.verticalCenter: parent.verticalCenter
+                                Layout.preferredWidth: Kirigami.Units.iconSizes.medium
+                                Layout.preferredHeight: Kirigami.Units.iconSizes.medium
                                 percentage: part.info?.percentage ?? -1
                                 charging: part.info?.charging ?? false
-                            }
+                                stale: !root.connected
 
-                            PlasmaComponents3.Label {
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: root.partName(part.modelData)
-                                textFormat: Text.PlainText
-                                font: Kirigami.Theme.smallFont
+                                PlasmaComponents3.Label {
+                                    anchors.centerIn: parent
+                                    text: root.partShortName(part.modelData)
+                                    font: Kirigami.Theme.smallFont
+                                }
                             }
 
                             PercentLabel {
-                                anchors.verticalCenter: parent.verticalCenter
+                                Layout.fillWidth: true
                                 percentage: part.info?.percentage ?? -1
                                 font: Kirigami.Theme.smallFont
-                                opacity: 0.7
+                                opacity: 0.8
                             }
                         }
                     }

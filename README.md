@@ -16,8 +16,8 @@ It runs in the panel, the system tray or on the desktop:
   connected and comes forward when a battery gets low.
 - **Desktop:** a grid of large rings, one per device.
 
-Devices you disconnected stay listed, dimmed, with their last levels and when they were
-last seen ("Disconnected 2 h ago"), so you can check the AirPods in their case before you
+Devices you disconnected stay listed under *Disconnected*, with their last levels in grey
+and when they were last seen ("3 h ago"), so you can check the AirPods in their case before you
 leave. AirPods and Beats also get a notification when their battery runs low.
 
 ## Why AirPods need special handling
@@ -177,8 +177,8 @@ systemctl --user restart plasma-plasmashell
   reaches the *Low battery at* level, and again only after it charged. Plasma already
   notifies about UPower devices (mice, keyboards, …), so they are left out. With several
   widget instances, the one configured last decides.
-- **List disconnected devices.** Keep devices you disconnected in the popup, dimmed, with
-  their last levels. They never count as low.
+- **List disconnected devices.** Keep devices you disconnected in the popup, under
+  *Disconnected*, with their last levels. They never count as low.
 - **Devices page.** Hide a device (e.g. a controller that always sits on its charger) or
   give it another name. Settings follow the device across reconnections: Bluetooth devices
   by their address, others by their name.
@@ -209,8 +209,8 @@ QT_LOGGING_RULES="devicebattery.debug=true" plasmashell --replace
   5 minutes. After five failed attempts in a row it hides the last levels rather
   than showing stale ones. The overall level of AirPods is that of the emptiest
   earbud in use: one in an ear or, with in-ear detection turned off, one that is not
-  charging in the case. Earbuds out of your ears are dimmed in the popup, and the tooltip
-  lists each earbud and the case.
+  charging in the case. The tooltip lists each earbud and the case, and which earbuds
+  are in your ears.
 - **The earbud in your ear is shown as out of it, and the other way round.** AirPods
   report in-ear detection for their *primary* and *secondary* earbud, and the widget takes
   the earbud listed first in battery reports as the primary. If yours swap them, please

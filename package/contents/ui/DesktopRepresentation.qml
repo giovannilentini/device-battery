@@ -8,7 +8,7 @@ import org.kde.plasma.extras as PlasmaExtras
 import io.github.giovannilentini.devicebattery
 
 // On the desktop: a grid of large rings, one per device, in the style of Apple's Batteries
-// widget. Earbuds list each earbud and the case under their ring.
+// widget. Earbuds show a small ring per earbud and the case under their ring.
 Item {
     id: desktop
 
@@ -58,7 +58,6 @@ Item {
                 Layout.preferredWidth: desktop.tileWidth
                 Layout.alignment: Qt.AlignTop
                 spacing: Kirigami.Units.smallSpacing
-                opacity: connected ? 1 : 0.6
 
                 BatteryRing {
                     Layout.alignment: Qt.AlignHCenter
@@ -67,6 +66,7 @@ Item {
                     percentage: tile.percentage
                     coarseLevel: tile.coarseLevel
                     charging: tile.charging
+                    stale: !tile.connected
 
                     Kirigami.Icon {
                         anchors.fill: parent
@@ -78,8 +78,9 @@ Item {
                     Layout.alignment: Qt.AlignHCenter
                     percentage: tile.percentage
                     coarseLevel: tile.coarseLevel
-                    font.bold: true
+                    font.bold: tile.connected
                     font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.3
+                    opacity: tile.connected ? 1 : 0.7
                 }
 
                 PlasmaComponents3.Label {
@@ -90,19 +91,45 @@ Item {
                     elide: Text.ElideRight
                 }
 
-                // "L 64% · R 82% · C 40%"
-                PlasmaComponents3.Label {
-                    Layout.fillWidth: true
+                // Earbuds: a small ring per earbud and the case, with its letter inside.
+                RowLayout {
+                    Layout.alignment: Qt.AlignHCenter
                     visible: tile.parts.length > 0
-                    horizontalAlignment: Text.AlignHCenter
-                    text: tile.parts.map(part => i18nc("@label earbud or case: battery level", "%1 %2",
-                        desktop.partShortName(part.component),
-                        part.percentage >= 0 ? i18nc("battery level in percent", "%1%", part.percentage) : "–")).join(" · ")
-                    textFormat: Text.PlainText
-                    wrapMode: Text.Wrap
-                    maximumLineCount: 2
-                    font: Kirigami.Theme.smallFont
-                    opacity: 0.7
+                    spacing: Kirigami.Units.smallSpacing
+
+                    Repeater {
+                        model: tile.parts
+
+                        delegate: ColumnLayout {
+                            id: part
+
+                            required property var modelData
+
+                            spacing: 0
+
+                            BatteryRing {
+                                Layout.alignment: Qt.AlignHCenter
+                                Layout.preferredWidth: Kirigami.Units.iconSizes.medium
+                                Layout.preferredHeight: Kirigami.Units.iconSizes.medium
+                                percentage: part.modelData.percentage
+                                charging: part.modelData.charging
+                                stale: !tile.connected
+
+                                PlasmaComponents3.Label {
+                                    anchors.centerIn: parent
+                                    text: desktop.partShortName(part.modelData.component)
+                                    font: Kirigami.Theme.smallFont
+                                }
+                            }
+
+                            PercentLabel {
+                                Layout.alignment: Qt.AlignHCenter
+                                percentage: part.modelData.percentage
+                                font: Kirigami.Theme.smallFont
+                                opacity: 0.7
+                            }
+                        }
+                    }
                 }
             }
         }

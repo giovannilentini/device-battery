@@ -13,6 +13,8 @@ Item {
     property int percentage: -1 // 0-100, or -1 when unknown
     property string coarseLevel: "" // see PercentLabel
     property bool charging: false
+    // A last known level (disconnected device): drawn in a neutral colour, never red or green.
+    property bool stale: false
     property real thickness: Math.max(2, Math.round(width / 12))
     default property alias content: centre.data
 
@@ -45,9 +47,15 @@ Item {
         // Level, clockwise from twelve o'clock
         ShapePath {
             fillColor: "transparent"
-            strokeColor: ring.percentage > 0
-                ? (ring.low ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.positiveTextColor)
-                : "transparent"
+            strokeColor: {
+                if (ring.percentage <= 0) {
+                    return "transparent";
+                }
+                if (ring.stale) {
+                    return Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.45);
+                }
+                return ring.low ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.positiveTextColor;
+            }
             strokeWidth: ring.thickness
             capStyle: ShapePath.RoundCap
 
