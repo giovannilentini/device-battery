@@ -8,6 +8,31 @@ namespace
 constexpr char Header[] = {0x04, 0x00, 0x04, 0x00};
 constexpr qsizetype OpcodeOffset = sizeof(Header);
 constexpr quint16 BatteryOpcode = 0x0004;
+constexpr quint16 EarDetectionOpcode = 0x0006;
+constexpr quint16 ControlOpcode = 0x0009;
+
+// Ear detection packet: header, opcode, then [primary] [secondary], one of EarState each.
+constexpr qsizetype PrimaryOffset = OpcodeOffset + 2;
+constexpr qsizetype SecondaryOffset = PrimaryOffset + 1;
+
+enum EarState : quint8 {
+    InEar = 0x00,
+    OutOfEar = 0x01,
+    InCase = 0x02,
+};
+
+// Control packet: header, opcode, [setting] [value] and three more bytes. Setting 0x0D is the
+// noise control mode.
+constexpr qsizetype SettingOffset = OpcodeOffset + 2;
+constexpr qsizetype ValueOffset = SettingOffset + 1;
+constexpr quint8 NoiseControlSetting = 0x0D;
+
+enum NoiseMode : quint8 {
+    ModeOff = 0x01,
+    ModeCancellation = 0x02,
+    ModeTransparency = 0x03,
+    ModeAdaptive = 0x04,
+};
 
 // Battery packet: header, opcode, entry count, then `count` entries of 5 bytes:
 //   [component] [0x01] [level 0-100] [status] [0x01]
@@ -51,6 +76,26 @@ quint8 byteAt(QByteArrayView data, qsizetype offset)
 {
     return static_cast<quint8>(data[offset]);
 }
+
+Placement toPlacement(quint8 value)
+{
+    switch (value) {
+    case InEar:
+        return Placement::InEar;
+    case OutOfEar:
+        return Placement::OutOfEar;
+    case InCase:
+        return Placement::InCase;
+    }
+    return Placement::Unknown;
+}
+
+// Whether `packet` is a packet with this opcode and at least `size` bytes.
+bool hasOpcode(QByteArrayView packet, quint16 opcode, qsizetype size)
+{
+    return packet.size() >= size && packet.startsWith(QByteArrayView(Header, sizeof(Header)))
+        && qFromLittleEndian<quint16>(packet.data() + OpcodeOffset) == opcode;
+}
 }
 
 QByteArray Aap::handshakePacket()
@@ -65,10 +110,7 @@ QByteArray Aap::requestNotificationsPacket()
 
 std::optional<QList<BatteryPart>> Aap::parseBatteryPacket(QByteArrayView packet)
 {
-    if (packet.size() < FirstEntryOffset || !packet.startsWith(QByteArrayView(Header, sizeof(Header)))) {
-        return std::nullopt;
-    }
-    if (qFromLittleEndian<quint16>(packet.data() + OpcodeOffset) != BatteryOpcode) {
+    if (!hasOpcode(packet, BatteryOpcode, FirstEntryOffset)) {
         return std::nullopt;
     }
 
@@ -93,4 +135,30 @@ std::optional<QList<BatteryPart>> Aap::parseBatteryPacket(QByteArrayView packet)
         });
     }
     return parts;
+}
+
+std::optional<std::pair<Placement, Placement>> Aap::parseEarDetectionPacket(QByteArrayView packet)
+{
+    if (!hasOpcode(packet, EarDetectionOpcode, SecondaryOffset + 1)) {
+        return std::nullopt;
+    }
+    return std::pair{toPlacement(byteAt(packet, PrimaryOffset)), toPlacement(byteAt(packet, SecondaryOffset))};
+}
+
+std::optional<NoiseControl> Aap::parseNoiseControlPacket(QByteArrayView packet)
+{
+    if (!hasOpcode(packet, ControlOpcode, ValueOffset + 1) || byteAt(packet, SettingOffset) != NoiseControlSetting) {
+        return std::nullopt;
+    }
+    switch (byteAt(packet, ValueOffset)) {
+    case ModeOff:
+        return NoiseControl::Off;
+    case ModeCancellation:
+        return NoiseControl::Cancellation;
+    case ModeTransparency:
+        return NoiseControl::Transparency;
+    case ModeAdaptive:
+        return NoiseControl::Adaptive;
+    }
+    return NoiseControl::Unknown;
 }

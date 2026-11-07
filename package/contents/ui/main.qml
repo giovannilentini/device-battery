@@ -1,6 +1,7 @@
 import QtQuick
 import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.plasmoid
+import org.kde.kcmutils as KCMUtils
 import io.github.giovannilentini.devicebattery
 
 import "levels.js" as Levels
@@ -9,15 +10,56 @@ PlasmoidItem {
     id: root
 
     // The shared backend runs only while at least one instance of the widget exists.
-    Component.onCompleted: DeviceModel.acquire()
+    Component.onCompleted: {
+        DeviceModel.acquire();
+        configureNotifications();
+    }
     Component.onDestruction: DeviceModel.release()
 
-    // [{name, iconName, percentage, coarseLevel, charging, parts}, ...] from the shared C++ backend.
-    readonly property var devices: DeviceModel.summary
+    // Low battery notifications are sent by the shared backend (once, however many instances
+    // there are), with texts translated here.
+    function configureNotifications() {
+        DeviceModel.configureNotifications(Plasmoid.configuration.notifyLow, Plasmoid.configuration.lowThreshold,
+            i18nc("@title:notification %1 is a device name", "%1: battery low"),
+            i18nc("@info:notification %1 is a battery level", "%1% left"));
+    }
+
+    Connections {
+        target: Plasmoid.configuration
+        function onNotifyLowChanged() {
+            root.configureNotifications();
+        }
+        function onLowThresholdChanged() {
+            root.configureNotifications();
+        }
+    }
+
+    // The shared backend with this instance's per-device settings applied: the popup lists it.
+    readonly property DeviceFilter deviceFilter: DeviceFilter {
+        sourceModel: DeviceModel
+        hiddenKeys: Plasmoid.configuration.hiddenDevices
+        customNames: root.parseNames(Plasmoid.configuration.deviceNames)
+        showDisconnected: Plasmoid.configuration.showDisconnected
+    }
+
+    function parseNames(json) {
+        try {
+            const names = JSON.parse(json);
+            return names !== null && typeof names === "object" ? names : {};
+        } catch (error) {
+            return {};
+        }
+    }
+
+    // [{name, iconName, percentage, coarseLevel, charging, parts, model, noiseControl, connected,
+    // lastSeen, key}, ...]
+    readonly property var devices: deviceFilter.summary
+    // Without the recently disconnected ones, which the popup lists with their last levels.
+    readonly property var connectedDevices: devices.filter(device => device.connected)
 
     // The device closest to running out; the panel icon follows it. Chosen in C++ (unit
     // tested): a charging device only counts when every device is charging.
-    readonly property var lowestDevice: devices[DeviceModel.lowestIndex] ?? null
+    readonly property var lowestDevice: devices[deviceFilter.lowestIndex] ?? null
 
     function levelText(percentage, coarseLevel) {
         switch (coarseLevel) {
@@ -50,9 +92,16 @@ PlasmoidItem {
             name = i18nc("@info:tooltip charging case", "Case");
             break;
         }
-        return part.charging
+        let text = part.charging
             ? i18nc("@info:tooltip earbud or case: battery level", "%1 %2, charging", name, levelText(part.percentage, ""))
             : i18nc("@info:tooltip earbud or case: battery level", "%1 %2", name, levelText(part.percentage, ""));
+        switch (part.placement) {
+        case "ear":
+            return i18nc("@info:tooltip earbud: battery level, where it is", "%1, in ear", text);
+        case "out":
+            return i18nc("@info:tooltip earbud: battery level, where it is", "%1, out of ear", text);
+        }
+        return text; // "case": the earbud charges, which the text already says
     }
 
     readonly property bool batteryLow: lowestDevice !== null
@@ -60,7 +109,7 @@ PlasmoidItem {
 
     // In the system tray: hidden with no devices, promoted when a battery is low.
     Plasmoid.status: {
-        if (devices.length === 0) {
+        if (connectedDevices.length === 0) {
             return PlasmaCore.Types.PassiveStatus;
         }
         return batteryLow ? PlasmaCore.Types.NeedsAttentionStatus : PlasmaCore.Types.ActiveStatus;
@@ -68,10 +117,10 @@ PlasmoidItem {
 
     toolTipMainText: Plasmoid.title
     toolTipSubText: {
-        if (devices.length === 0) {
+        if (connectedDevices.length === 0) {
             return i18nc("@info:tooltip", "No devices with battery information");
         }
-        return devices.map(device => {
+        return connectedDevices.map(device => {
             // Earbuds list each part ("AirPods: Left 40%, Right 80%, Case 10%, charging"),
             // other devices their single level.
             if (device.parts.length > 0) {
@@ -85,10 +134,34 @@ PlasmoidItem {
         }).join("\n");
     }
 
+    Plasmoid.contextualActions: [
+        PlasmaCore.Action {
+            text: i18nc("@action:inmenu", "Forget Disconnected Devices")
+            icon.name: "edit-clear-history"
+            visible: root.devices.length > root.connectedDevices.length
+            onTriggered: DeviceModel.forgetDisconnected()
+        },
+        PlasmaCore.Action {
+            text: i18nc("@action:inmenu", "&Bluetooth Settings…")
+            icon.name: "preferences-system-bluetooth"
+            onTriggered: KCMUtils.KCMLauncher.openSystemSettings("kcm_bluetooth")
+        }
+    ]
+
     compactRepresentation: CompactRepresentation {
         plasmoidItem: root
         device: root.lowestDevice
     }
 
-    fullRepresentation: FullRepresentation {}
+    // On the desktop the grid of rings is shown directly; in a panel or the system tray, the
+    // icon and the list in a popup. The form factor alone is not enough: the system tray hosts
+    // its widgets in a planar containment too, which it marks by drawing their heading.
+    readonly property bool inSystemTray: (Plasmoid.containmentDisplayHints & PlasmaCore.Types.ContainmentDrawsPlasmoidHeading) !== 0
+    readonly property bool onDesktop: Plasmoid.location === PlasmaCore.Types.Desktop && !inSystemTray
+    preferredRepresentation: onDesktop ? fullRepresentation : null
+
+    fullRepresentation: FullRepresentation {
+        model: root.deviceFilter
+        onDesktop: root.onDesktop
+    }
 }

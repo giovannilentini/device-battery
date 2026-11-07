@@ -22,6 +22,15 @@ public:
     // `bus` is the system bus in the widget; tests pass a private bus with a fake BlueZ.
     explicit AirPodsSource(const QDBusConnection &bus = QDBusConnection::systemBus(), QObject *parent = nullptr);
 
+    // Every connected Bluetooth device except the AirPods this source reads, whether or not it
+    // has a battery: the widget lists the ones nothing reports a level for. BlueZ is watched
+    // for AirPods anyway, so this costs no extra D-Bus traffic.
+    QList<SilentDevice> silentDevices() const;
+
+Q_SIGNALS:
+    // The connected Bluetooth devices or their names changed (see silentDevices()).
+    void connectionsChanged();
+
 private Q_SLOTS:
     void onInterfacesAdded(const QDBusMessage &message);
     void onInterfacesRemoved(const QDBusMessage &message);
@@ -32,13 +41,18 @@ private:
         QString address;
         QString name;
         AapSession *session = nullptr;
-        QList<BatteryPart> parts; // last report, kept so a rename can be published
+        QList<BatteryPart> parts; // last report, in its order (see applyPlacements())
+        QString model;
+        Placement primary = Placement::Unknown;
+        Placement secondary = Placement::Unknown;
+        NoiseControl noiseControl = NoiseControl::Unknown;
     };
 
     void enumerate();
     void reset();
     void addDevice(const QString &path, const QVariantMap &properties);
     void evaluate(const QString &path);
+    void evaluateAirPods(const QString &path);
     void start(const QString &path, const QVariantMap &properties);
     void stop(const QString &path);
     void publish(const Tracked &tracked);

@@ -7,6 +7,7 @@
 #include <QByteArrayView>
 
 #include <optional>
+#include <utility>
 
 // Apple Accessory Protocol (AAP): the private protocol AirPods and Beats speak with
 // Apple hosts over an L2CAP channel. BlueZ does not implement it, which is why Linux
@@ -30,4 +31,12 @@ QByteArray requestNotificationsPacket();
 // any other kind of packet (AirPods send many we do not care about).
 // Components the accessory reports as unreachable (e.g. a closed case) are left out.
 std::optional<QList<BatteryPart>> parseBatteryPacket(QByteArrayView packet);
+
+// In-ear detection: where the primary and the secondary earbud are (see applyPlacements()),
+// or std::nullopt for any other packet. Sent on connect and whenever an earbud moves.
+std::optional<std::pair<Placement, Placement>> parseEarDetectionPacket(QByteArrayView packet);
+
+// The current noise control mode, or std::nullopt for any other packet. Models with noise
+// control send it on connect and whenever the mode changes.
+std::optional<NoiseControl> parseNoiseControlPacket(QByteArrayView packet);
 }

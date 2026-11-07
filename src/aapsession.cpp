@@ -167,6 +167,12 @@ void AapSession::onReadable()
                 qCDebug(DEVICEBATTERY).noquote() << "Battery report from" << m_address << "with" << parts->size()
                                                  << "components:" << QByteArray(buffer, size).toHex(' ');
                 Q_EMIT batteryChanged(*parts);
+            } else if (const auto placements = Aap::parseEarDetectionPacket(QByteArrayView(buffer, size))) {
+                qCDebug(DEVICEBATTERY).noquote() << "Ear detection report from" << m_address << ":" << QByteArray(buffer, size).toHex(' ');
+                Q_EMIT placementsChanged(placements->first, placements->second);
+            } else if (const auto mode = Aap::parseNoiseControlPacket(QByteArrayView(buffer, size))) {
+                qCDebug(DEVICEBATTERY).noquote() << "Noise control report from" << m_address << ":" << QByteArray(buffer, size).toHex(' ');
+                Q_EMIT noiseControlChanged(*mode);
             }
             if (m_reported) {
                 m_watchdog.start(IdleTimeout); // any traffic proves the session is alive

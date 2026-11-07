@@ -129,6 +129,37 @@ private Q_SLOTS:
         QCOMPARE(UPower::toDevice(Path, {{QStringLiteral("Model"), model}, {QStringLiteral("Type"), type}}).kind, kind);
     }
 
+    // Every UPower kind maps to a kind with an icon that exists (in Breeze); the ones Breeze has
+    // no icon for get the generic one.
+    void mapsEveryUPowerType_data()
+    {
+        QTest::addColumn<uint>("type");
+        QTest::addColumn<QString>("icon");
+        QTest::newRow("monitor") << 4u << QStringLiteral("video-display");
+        QTest::newRow("pda") << 7u << QStringLiteral("phone");
+        QTest::newRow("computer") << 11u << QStringLiteral("computer");
+        QTest::newRow("pen") << 13u << QStringLiteral("input-tablet");
+        QTest::newRow("modem") << 15u << QStringLiteral("network-modem");
+        QTest::newRow("network") << 16u << QStringLiteral("network-wireless");
+        QTest::newRow("video") << 20u << QStringLiteral("camera-video");
+        QTest::newRow("other audio") << 21u << QStringLiteral("audio-headphones");
+        QTest::newRow("remote control") << 22u << QStringLiteral("preferences-system-bluetooth-battery-symbolic");
+        QTest::newRow("printer") << 23u << QStringLiteral("printer");
+        QTest::newRow("scanner") << 24u << QStringLiteral("scanner");
+        QTest::newRow("camera") << 25u << QStringLiteral("camera-photo");
+        QTest::newRow("wearable") << 26u << QStringLiteral("preferences-system-bluetooth-battery-symbolic");
+        QTest::newRow("toy") << 27u << QStringLiteral("applications-games");
+        QTest::newRow("bluetooth generic") << 28u << QStringLiteral("preferences-system-bluetooth");
+        QTest::newRow("unknown") << 0u << QStringLiteral("preferences-system-bluetooth-battery-symbolic");
+    }
+
+    void mapsEveryUPowerType()
+    {
+        QFETCH(uint, type);
+        QFETCH(QString, icon);
+        QCOMPARE(iconName(UPower::toDevice(Path, {{QStringLiteral("Model"), QStringLiteral("Gadget")}, {QStringLiteral("Type"), type}}).kind), icon);
+    }
+
     void nameFallsBackToVendor()
     {
         QCOMPARE(UPower::toDevice(Path, {{QStringLiteral("Vendor"), QStringLiteral("Logitech")}}).name, QStringLiteral("Logitech"));

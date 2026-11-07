@@ -3,12 +3,18 @@
 
 #include "logging.h"
 
+#include <QDateTime>
 #include <QSet>
 
 #include <algorithm>
 
 namespace
 {
+QDateTime lastSeenOf(const Device &device)
+{
+    return device.connected ? QDateTime() : QDateTime::fromMSecsSinceEpoch(device.lastSeen);
+}
+
 QVariantList partsToVariant(const QList<BatteryPart> &parts)
 {
     QVariantList list;
@@ -18,6 +24,7 @@ QVariantList partsToVariant(const QList<BatteryPart> &parts)
             {QStringLiteral("component"), componentKey(part.component)},
             {QStringLiteral("percentage"), part.percentage},
             {QStringLiteral("charging"), part.charging},
+            {QStringLiteral("placement"), placementKey(part.placement)},
         });
     }
     return list;
@@ -45,6 +52,18 @@ QList<int> changedRoles(const Device &before, const Device &after)
     }
     if (before.parts != after.parts) {
         roles << DeviceListModel::PartsRole;
+    }
+    if (before.model != after.model) {
+        roles << DeviceListModel::ModelRole;
+    }
+    if (before.noiseControl != after.noiseControl) {
+        roles << DeviceListModel::NoiseControlRole;
+    }
+    if (before.connected != after.connected) {
+        roles << DeviceListModel::ConnectedRole;
+    }
+    if (before.connected != after.connected || before.lastSeen != after.lastSeen) {
+        roles << DeviceListModel::LastSeenRole;
     }
     return roles;
 }
@@ -85,6 +104,16 @@ QVariant DeviceListModel::data(const QModelIndex &index, int role) const
         return partsToVariant(device.parts);
     case CoarseLevelRole:
         return coarseLevelKey(device.coarseLevel);
+    case ModelRole:
+        return device.model;
+    case NoiseControlRole:
+        return noiseControlKey(device.noiseControl);
+    case ConnectedRole:
+        return device.connected;
+    case LastSeenRole:
+        return lastSeenOf(device);
+    case KeyRole:
+        return deviceKey(device);
     }
     return {};
 }
@@ -98,14 +127,24 @@ QHash<int, QByteArray> DeviceListModel::roleNames() const
         {ChargingRole, "charging"},
         {PartsRole, "parts"},
         {CoarseLevelRole, "coarseLevel"},
+        {ModelRole, "model"},
+        {NoiseControlRole, "noiseControl"},
+        {ConnectedRole, "connected"},
+        {LastSeenRole, "lastSeen"},
+        {KeyRole, "key"},
     };
 }
 
 QVariantList DeviceListModel::summary() const
 {
+    return devicesToVariant(m_devices);
+}
+
+QVariantList devicesToVariant(const QList<Device> &devices)
+{
     QVariantList list;
-    list.reserve(m_devices.size());
-    for (const Device &device : m_devices) {
+    list.reserve(devices.size());
+    for (const Device &device : devices) {
         list.append(QVariantMap{
             {QStringLiteral("name"), device.name},
             {QStringLiteral("iconName"), iconName(device.kind)},
@@ -113,6 +152,11 @@ QVariantList DeviceListModel::summary() const
             {QStringLiteral("coarseLevel"), coarseLevelKey(device.coarseLevel)},
             {QStringLiteral("charging"), device.charging},
             {QStringLiteral("parts"), partsToVariant(device.parts)},
+            {QStringLiteral("model"), device.model},
+            {QStringLiteral("noiseControl"), noiseControlKey(device.noiseControl)},
+            {QStringLiteral("connected"), device.connected},
+            {QStringLiteral("lastSeen"), lastSeenOf(device)},
+            {QStringLiteral("key"), deviceKey(device)},
         });
     }
     return list;

@@ -3,14 +3,24 @@
 A KDE Plasma 6 widget that shows the battery level of your wireless devices, like
 Apple's *Batteries* widget:
 
-- **AirPods and Beats**: left earbud, right earbud and charging case, each to 1 %
+- **AirPods and Beats**: left earbud, right earbud and charging case, each to 1 %,
+  which earbuds are in your ears, the noise control mode and the model
 - **Headphones and headsets** that report their battery over Bluetooth
 - **Keyboards, mice, touchpads and game controllers**, over Bluetooth or a USB
   receiver (e.g. Logitech Unifying/Lightspeed)
 
-It runs in the panel or the system tray. It shows the device that's closest to
-running out inside a ring, and the popup lists every device. In the system tray it
-hides when nothing is connected and comes forward when a battery gets low.
+It runs in the panel, the system tray or on the desktop:
+
+- **Panel and system tray:** the device closest to running out is shown inside a ring, and
+  the popup lists every device. In the system tray the widget hides when nothing is
+  connected and comes forward when a battery gets low.
+- **Desktop:** a grid of rings, one per device, that adapts to the size you give the
+  widget: the rings grow with it and the columns rearrange; when it is too small for
+  rings, it shows the list.
+
+Devices you disconnected stay listed under *Disconnected*, with their last levels in grey
+and when they were last seen ("3 h ago"), so you can check the AirPods in their case before you
+leave. AirPods and Beats also get a notification when their battery runs low.
 
 ## Why AirPods need special handling
 
@@ -42,7 +52,9 @@ uses.
 | `src/airpodssource.{h,cpp}` | Finds connected Apple audio devices through BlueZ and runs a session for each |
 | `src/upowerdevice.{h,cpp}` | Maps UPower properties to a `Device` (pure functions, unit tested) |
 | `src/upowersource.{h,cpp}` | Peripheral batteries from UPower |
+| `src/usbreceivers.{h,cpp}` | USB wireless receivers without a battery, from sysfs (unit tested) |
 | `src/devicelistmodel.{h,cpp}` | The list model: merging, sorting and minimal row updates (unit tested) |
+| `src/devicefilter.{h,cpp}` | Per-instance view of the list: hidden and renamed devices (unit tested) |
 | `src/devicemodel.{h,cpp}` | The QML singleton that feeds both sources into the list model |
 | `package/` | The plasmoid: QML UI, settings and metadata |
 
@@ -64,6 +76,9 @@ uses.
   and reports only the roles that changed, so the popup never rebuilds its delegates.
   A device that disappears stays listed for 2 seconds, so one that comes right back
   (e.g. a Logitech mouse waking up) does not make the row or the tray icon blink.
+- **Remembers disconnected devices cheaply.** Their last levels are written to
+  `~/.cache/devicebattery/recent-devices.json` only when a device disconnects (at most
+  8 devices are kept).
 - **Survives daemon restarts.** If `bluetoothd` or `upowerd` restarts, the widget drops
   what it knew and reads the devices again.
 
@@ -161,6 +176,22 @@ systemctl --user restart plasma-plasmashell
   moves out of the overflow menu. A device that is charging never counts as low, and
   the panel shows the emptiest device that is running down.
 
+- **Notify when AirPods or Beats run low.** One notification when the earbud in use
+  reaches the *Low battery at* level, and again only after it charged. Plasma already
+  notifies about UPower devices (mice, keyboards, …), so they are left out. With several
+  widget instances, the one configured last decides.
+- **List disconnected devices.** Keep devices you disconnected in the popup, under
+  *Disconnected*, with their last levels. They never count as low.
+- **Devices page.** Hide a device (e.g. a controller that always sits on its charger) or
+  give it another name. Settings follow the device across reconnections: Bluetooth devices
+  by their address, others by their name.
+
+Right-click the widget for **Bluetooth Settings…** and, while disconnected devices are
+listed, **Forget Disconnected Devices**.
+
+Each widget instance has its own settings, so a panel widget and one on the desktop can
+show different devices.
+
 Devices that report only a rough level (many older Logitech mice) show it as a word,
 such as *Low* or *Normal*, instead of a made-up percentage; *Low* and *Critical* always
 count as low.
@@ -180,10 +211,25 @@ QT_LOGGING_RULES="devicebattery.debug=true" plasmashell --replace
   connected (at most every 2 minutes), and reconnects if a session goes silent for
   5 minutes. After five failed attempts in a row it hides the last levels rather
   than showing stale ones. The overall level of AirPods is that of the emptiest
-  earbud in use (one charging in the case is left out); the tooltip lists each earbud and the case.
+  earbud in use: one in an ear or, with in-ear detection turned off, one that is not
+  charging in the case. The tooltip lists each earbud and the case, and which earbuds
+  are in your ears.
+- **The earbud in your ear is shown as out of it, and the other way round.** AirPods
+  report in-ear detection for their *primary* and *secondary* earbud, and the widget takes
+  the earbud listed first in battery reports as the primary. If yours swap them, please
+  open an issue with the `Ear detection report` and `Battery report` lines of the debug log.
+- **The model is missing or wrong.** The model comes from the product ID in BlueZ
+  (`bluetoothctl info <address>`, line `Modalias`). Please open an issue with that line and
+  the name of your model.
 - **AirPods or Beats show wrong levels.** The debug log above contains the raw bytes
   of every battery report (`Battery report from … components: 04 00 04 00 …`).
   Please open an issue with your model and those lines.
+- **A device is missing.** The widget shows every device Linux reports a battery for. The
+  popup also lists connected devices that report none: Bluetooth devices, and USB wireless
+  receivers without a battery (it looks for those when the popup opens). Many keyboards and
+  mice report their battery over Bluetooth but not through their 2.4 GHz receiver, whose
+  level only the vendor's app can read; connect them over Bluetooth to see it. To stop
+  listing a device that has no battery, untick it on the *Devices* settings page.
 - **A Bluetooth device is missing.** Run `upower -d`. If the device isn't listed
   there, it doesn't report its battery to Linux. Some headsets only do so when
   BlueZ's experimental features are on (`Experimental = true` in
@@ -196,8 +242,11 @@ cmake -B build -DCMAKE_BUILD_TYPE=Debug
 cmake --build build
 ctest --test-dir build --output-on-failure
 cmake --build build --target clang-format   # needs clang-format
-/usr/lib64/qt6/bin/qmllint --max-warnings 0 --unqualified info -I build/bin package/contents/ui/*.qml
+/usr/lib64/qt6/bin/qmllint --bare --max-warnings 0 --unqualified info -I build/bin -I /usr/lib64/qt6/qml package/contents/ui/*.qml
 ```
+
+`--bare` makes qmllint read the plugin from `build/bin` first; otherwise an installed copy
+of the widget hides new types and properties.
 
 The UPower source is tested against a fake UPower on a private bus, which needs
 `dbus-run-session` (package `dbus-daemon` on Fedora, `dbus` on Arch); without it that

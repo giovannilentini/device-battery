@@ -18,12 +18,13 @@ const QString AppleModaliasPrefix = QStringLiteral("bluetooth:v004C");
 const QString AudioSinkUuid = QStringLiteral("0000110b-0000-1000-8000-00805f9b34fb");
 const QString HandsfreeUuid = QStringLiteral("0000111e-0000-1000-8000-00805f9b34fb");
 
-// The Device1 properties isConnectedAppleAudio(), displayName() and start() read. Changes of
+// The Device1 properties isConnectedAppleAudio(), displayName(), start() and silentDevices() read. Changes of
 // any other property (e.g. RSSI while something scans) are ignored without further work.
 const QStringList RelevantKeys{
     QStringLiteral("Address"),
     QStringLiteral("Alias"),
     QStringLiteral("Connected"),
+    QStringLiteral("Icon"), // for silentDevices()
     QStringLiteral("Modalias"),
     QStringLiteral("Name"),
     QStringLiteral("UUIDs"),
@@ -115,6 +116,25 @@ void AirPodsSource::enumerate()
     });
 }
 
+QList<SilentDevice> AirPodsSource::silentDevices() const
+{
+    QList<SilentDevice> devices;
+    for (auto it = m_properties.cbegin(); it != m_properties.cend(); ++it) {
+        if (!it->value(QStringLiteral("Connected")).toBool() || m_tracked.contains(it.key())) {
+            continue; // AirPods have their own session, which reports a level or keeps trying
+        }
+        const QString icon = it->value(QStringLiteral("Icon")).toString();
+        devices.append({
+            .key = QStringLiteral("bt:") + it->value(QStringLiteral("Address")).toString().toUpper(),
+            .name = displayName(*it),
+            .iconName = icon.isEmpty() ? QStringLiteral("preferences-system-bluetooth") : icon,
+            .audio = icon.startsWith(QLatin1String("audio-")),
+            .usb = false,
+        });
+    }
+    return devices;
+}
+
 void AirPodsSource::reset()
 {
     for (const Tracked &tracked : std::as_const(m_tracked)) {
@@ -123,6 +143,7 @@ void AirPodsSource::reset()
     m_tracked.clear();
     m_properties.clear();
     clear();
+    Q_EMIT connectionsChanged();
 }
 
 void AirPodsSource::onInterfacesAdded(const QDBusMessage &message)
@@ -141,6 +162,7 @@ void AirPodsSource::onInterfacesRemoved(const QDBusMessage &message)
     const QString path = DBus::argument<QDBusObjectPath>(message, 0).path();
     m_properties.remove(path);
     stop(path);
+    Q_EMIT connectionsChanged();
 }
 
 void AirPodsSource::onPropertiesChanged(const QDBusMessage &message)
@@ -173,6 +195,12 @@ void AirPodsSource::addDevice(const QString &path, const QVariantMap &properties
 
 void AirPodsSource::evaluate(const QString &path)
 {
+    evaluateAirPods(path);
+    Q_EMIT connectionsChanged();
+}
+
+void AirPodsSource::evaluateAirPods(const QString &path)
+{
     const QVariantMap properties = m_properties.value(path);
     if (!isConnectedAppleAudio(properties)) {
         stop(path);
@@ -199,7 +227,11 @@ void AirPodsSource::start(const QString &path, const QVariantMap &properties)
         .name = displayName(properties),
         .session = nullptr,
         .parts = {},
+        .model = appleModelName(properties.value(QStringLiteral("Modalias")).toString()),
     };
+    if (tracked.name.contains(tracked.model, Qt::CaseInsensitive)) {
+        tracked.model.clear(); // e.g. "AirPods Max" named "AirPods Max": nothing to add
+    }
     qCDebug(DEVICEBATTERY) << "Tracking" << tracked.name << tracked.address;
     tracked.session = new AapSession(tracked.address, this);
     connect(tracked.session, &AapSession::batteryChanged, this, [this, path](const QList<BatteryPart> &parts) {
@@ -209,10 +241,27 @@ void AirPodsSource::start(const QString &path, const QVariantMap &properties)
             publish(*entry);
         }
     });
+    connect(tracked.session, &AapSession::placementsChanged, this, [this, path](Placement primary, Placement secondary) {
+        const auto entry = m_tracked.find(path);
+        if (entry != m_tracked.end()) {
+            entry->primary = primary;
+            entry->secondary = secondary;
+            publish(*entry);
+        }
+    });
+    connect(tracked.session, &AapSession::noiseControlChanged, this, [this, path](NoiseControl mode) {
+        const auto entry = m_tracked.find(path);
+        if (entry != m_tracked.end()) {
+            entry->noiseControl = mode;
+            publish(*entry);
+        }
+    });
     connect(tracked.session, &AapSession::batteryLost, this, [this, path] {
         const auto entry = m_tracked.find(path);
         if (entry != m_tracked.end()) {
             entry->parts.clear();
+            entry->primary = entry->secondary = Placement::Unknown;
+            entry->noiseControl = NoiseControl::Unknown;
             publish(*entry); // withdraws the device; a UPower entry for it may show instead
         }
     });
@@ -242,6 +291,10 @@ void AirPodsSource::publish(const Tracked &tracked)
     device.id = deviceId(tracked.address);
     device.address = tracked.address;
     device.name = tracked.name;
-    applyBatteryParts(device, tracked.parts); // fills kind, levels and parts
+    device.model = tracked.model;
+    device.noiseControl = tracked.noiseControl;
+    QList<BatteryPart> parts = tracked.parts;
+    applyPlacements(parts, tracked.primary, tracked.secondary);
+    applyBatteryParts(device, parts); // fills kind, levels and parts
     upsert(device);
 }

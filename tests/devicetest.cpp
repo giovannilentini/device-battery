@@ -5,6 +5,26 @@
 
 using Component = BatteryPart::Component;
 
+namespace
+{
+Device makeDevice(const QString &id, const QString &name, int percentage = -1)
+{
+    Device device;
+    device.id = id;
+    device.name = name;
+    device.percentage = percentage;
+    return device;
+}
+
+Device makeGone(const QString &id, const QString &name, qint64 lastSeen, int percentage = -1)
+{
+    Device device = makeDevice(id, name, percentage);
+    device.connected = false;
+    device.lastSeen = lastSeen;
+    return device;
+}
+}
+
 class DeviceTest : public QObject
 {
     Q_OBJECT
@@ -98,6 +118,197 @@ private Q_SLOTS:
 
         QCOMPARE(device.percentage, -1);
         QVERIFY(!device.charging);
+    }
+
+    // AirPods report placements for the primary and secondary earbud; the primary is the
+    // first earbud of the battery report, whatever the side.
+    void placementsFollowThePrimaryEarbud()
+    {
+        QList<BatteryPart> parts{{Component::Case, 50, false}, {Component::Right, 80, false}, {Component::Left, 40, false}};
+        applyPlacements(parts, Placement::InEar, Placement::InCase);
+
+        QCOMPARE(parts.at(0).placement, Placement::Unknown); // the case has none
+        QCOMPARE(parts.at(1).placement, Placement::InEar); // right, listed first
+        QCOMPARE(parts.at(2).placement, Placement::InCase);
+    }
+
+    // With in-ear detection, the earbud in the ear wins even over an emptier one that lies
+    // on the table (not charging, so without detection it would count as in use).
+    void showsTheEarbudInTheEar()
+    {
+        Device device;
+        applyBatteryParts(device,
+                          {{Component::Left, 30, false, Placement::OutOfEar}, {Component::Right, 70, false, Placement::InEar}, {Component::Case, 50, false}});
+
+        QCOMPARE(device.percentage, 70);
+        QCOMPARE(device.parts.at(1).placement, Placement::InEar);
+    }
+
+    // Both out of the ears: the emptiest earbud, as without detection.
+    void noEarbudInTheEar()
+    {
+        Device device;
+        applyBatteryParts(device,
+                          {{Component::Left, 30, false, Placement::OutOfEar}, {Component::Right, 70, true, Placement::InCase}, {Component::Case, 50, false}});
+
+        QCOMPARE(device.percentage, 30);
+        QVERIFY(!device.charging);
+    }
+
+    void modelNames_data()
+    {
+        QTest::addColumn<QString>("modalias");
+        QTest::addColumn<QString>("model");
+        QTest::newRow("AirPods Pro 2") << QStringLiteral("bluetooth:v004Cp2014d0B5A") << QStringLiteral("AirPods Pro (2nd generation)");
+        QTest::newRow("lower case") << QStringLiteral("bluetooth:v004cp201bd215c") << QStringLiteral("AirPods 4 (ANC)");
+        QTest::newRow("unknown product") << QStringLiteral("bluetooth:v004CpFFFFd0001") << QString();
+        QTest::newRow("other vendor") << QStringLiteral("bluetooth:v0075p2014d0001") << QString();
+        QTest::newRow("usb") << QStringLiteral("usb:v05ACp2014d0001") << QString();
+    }
+
+    void modelNames()
+    {
+        QFETCH(QString, modalias);
+        QFETCH(QString, model);
+        QCOMPARE(appleModelName(modalias), model);
+    }
+
+    void recentDevicesKeepLastLevels()
+    {
+        Device airPods = makeDevice(QStringLiteral("aap:1"), QStringLiteral("AirPods"));
+        airPods.address = QStringLiteral("38:C4:3A:7B:06:85");
+        applyBatteryParts(airPods, {{Component::Left, 40, false, Placement::InEar}, {Component::Case, 60, true}});
+        airPods.noiseControl = NoiseControl::Transparency;
+
+        const QList<Device> recent = updateRecentDevices({}, {airPods}, {}, 1000);
+        QCOMPARE(recent.size(), 1);
+        const Device &kept = recent.first();
+        QVERIFY(!kept.connected);
+        QCOMPARE(kept.lastSeen, 1000);
+        QCOMPARE(kept.percentage, 40);
+        QCOMPARE(kept.noiseControl, NoiseControl::Unknown);
+        QCOMPARE(kept.parts.size(), 2);
+        QVERIFY(!kept.parts.at(1).charging); // a last level, not charging any more
+        QCOMPARE(kept.parts.at(0).placement, Placement::Unknown);
+    }
+
+    void recentDevicesDropReconnectedAndOld()
+    {
+        QList<Device> recent;
+        for (int i = 0; i < MaxRecentDevices; ++i) {
+            recent.append(makeGone(QStringLiteral("old%1").arg(i), QStringLiteral("Old %1").arg(i), 100 - i));
+        }
+        // "Old 0" is back under a new id (e.g. a Logitech receiver), a new device just went away.
+        const Device back = makeDevice(QStringLiteral("new-id"), QStringLiteral("Old 0"));
+        const Device gone = makeDevice(QStringLiteral("gone"), QStringLiteral("Gone"));
+        const QList<Device> updated = updateRecentDevices(recent, {gone}, {back}, 500);
+
+        QCOMPARE(updated.size(), MaxRecentDevices);
+        QCOMPARE(updated.first().id, QStringLiteral("gone")); // the most recent first
+        QVERIFY(std::ranges::none_of(updated, [](const Device &device) {
+            return device.name == QStringLiteral("Old 0");
+        }));
+        QCOMPARE(updated.last().id, QStringLiteral("old%1").arg(MaxRecentDevices - 1));
+    }
+
+    void recentDevicesRoundTripThroughJson()
+    {
+        Device mouse = makeDevice(QStringLiteral("upower:/mouse"), QStringLiteral("Mouse"), 30);
+        mouse.kind = DeviceKind::Mouse;
+        mouse.coarseLevel = CoarseLevel::Low;
+        Device airPods = makeDevice(QStringLiteral("aap:1"), QStringLiteral("AirPods"));
+        airPods.address = QStringLiteral("38:C4:3A:7B:06:85");
+        applyBatteryParts(airPods, {{Component::Left, 40, false}, {Component::Right, -1, false}});
+        airPods.model = QStringLiteral("AirPods Pro");
+        const QList<Device> recent = updateRecentDevices({}, {mouse, airPods}, {}, 1234);
+
+        QCOMPARE(recentDevicesFromJson(recentDevicesToJson(recent)), recent);
+    }
+
+    // Kinds added after the first release survive the cache file too.
+    void recentDevicesKeepNewKinds()
+    {
+        Device printer = makeDevice(QStringLiteral("upower:/printer"), QStringLiteral("Printer"), 40);
+        printer.kind = LastDeviceKind;
+        const QList<Device> recent = updateRecentDevices({}, {printer}, {}, 1);
+        QCOMPARE(recentDevicesFromJson(recentDevicesToJson(recent)).value(0).kind, LastDeviceKind);
+    }
+
+    void recentDevicesSkipMalformedJson_data()
+    {
+        QTest::addColumn<QByteArray>("json");
+        QTest::newRow("not json") << QByteArray("garbage");
+        QTest::newRow("not an array") << QByteArray(R"({"id": "x"})");
+        QTest::newRow("no id") << QByteArray(R"([{"lastSeen": 5}])");
+        QTest::newRow("no time") << QByteArray(R"([{"id": "x"}])");
+        QTest::newRow("bad kind") << QByteArray(R"([{"id": "x", "lastSeen": 5, "kind": 99}])");
+        QTest::newRow("bad level") << QByteArray(R"([{"id": "x", "lastSeen": 5, "percentage": 250}])");
+    }
+
+    void recentDevicesSkipMalformedJson()
+    {
+        QFETCH(QByteArray, json);
+        QVERIFY(recentDevicesFromJson(json).isEmpty());
+    }
+
+    void disconnectedDeviceIsNeverTheLowest()
+    {
+        const Device gone = makeGone(QStringLiteral("a"), QStringLiteral("A"), 1, 5);
+        const Device mouse = makeDevice(QStringLiteral("b"), QStringLiteral("B"), 50);
+        QCOMPARE(lowestDeviceIndex({gone, mouse}), 1);
+        QCOMPARE(lowestDeviceIndex({gone}), -1);
+    }
+
+    void warnsOnceUntilRearmed()
+    {
+        QSet<QString> warned;
+        Device pods = makeDevice(QStringLiteral("aap:1"), QStringLiteral("AirPods"), 25);
+
+        QVERIFY(devicesToWarn({pods}, warned, 20).isEmpty());
+        pods.percentage = 20;
+        QCOMPARE(devicesToWarn({pods}, warned, 20).size(), 1); // crossed the threshold
+        pods.percentage = 15;
+        QVERIFY(devicesToWarn({pods}, warned, 20).isEmpty()); // already warned
+        pods.charging = true;
+        QVERIFY(devicesToWarn({pods}, warned, 20).isEmpty()); // charging re-arms
+        pods.charging = false;
+        QCOMPARE(devicesToWarn({pods}, warned, 20).size(), 1); // unplugged while still low
+        QVERIFY(devicesToWarn({}, warned, 20).isEmpty()); // disconnected: re-arms too
+        QCOMPARE(devicesToWarn({pods}, warned, 20).size(), 1);
+    }
+
+    void neverWarnsAboutUnknownOrDisconnected()
+    {
+        QSet<QString> warned;
+        const Device unknown = makeDevice(QStringLiteral("aap:1"), QStringLiteral("A"), -1);
+        const Device gone = makeGone(QStringLiteral("aap:2"), QStringLiteral("B"), 1, 5);
+        QVERIFY(devicesToWarn({unknown, gone}, warned, 20).isEmpty());
+    }
+
+    void silentDevicesAreTheOnesWithoutLevel()
+    {
+        const auto silent = [](const QString &key, const QString &name) {
+            SilentDevice device;
+            device.key = key;
+            device.name = name;
+            return device;
+        };
+        Device keyboard = makeDevice(QStringLiteral("upower:/kbd"), QStringLiteral("YZ87-BT1"), 100);
+        keyboard.address = QStringLiteral("DC:56:10:C9:C0:6B");
+        Device goneHeadset = makeGone(QStringLiteral("upower:/hs"), QStringLiteral("Headset"), 1, 50);
+        goneHeadset.address = QStringLiteral("AA:BB:CC:DD:EE:FF");
+
+        const QList<SilentDevice> result = silentDevices(
+            {
+                silent(QStringLiteral("bt:DC:56:10:C9:C0:6B"), QStringLiteral("YZ87-BT1")), // reports a level
+                silent(QStringLiteral("bt:AA:BB:CC:DD:EE:FF"), QStringLiteral("Headset")), // only its old level
+                silent(QStringLiteral("usb:05ac:024f"), QStringLiteral("2.4G Dongle")),
+            },
+            {keyboard, goneHeadset});
+
+        QCOMPARE(result.size(), 2);
+        QCOMPARE(result.at(0).name, QStringLiteral("2.4G Dongle")); // sorted by name
+        QCOMPARE(result.at(1).name, QStringLiteral("Headset")); // connected again, but silent now
     }
 
     void lowestDevice_data()

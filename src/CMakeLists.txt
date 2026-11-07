@@ -2,9 +2,11 @@
 add_library(devicebattery_core STATIC
     aapprotocol.cpp
     device.cpp
+    devicefilter.cpp
     devicelistmodel.cpp
     logging.cpp
     upowerdevice.cpp
+    usbreceivers.cpp
 )
 target_include_directories(devicebattery_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(devicebattery_core PUBLIC Qt6::Core)
@@ -33,6 +35,7 @@ set_target_properties(devicebattery_sources PROPERTIES POSITION_INDEPENDENT_CODE
 
 target_sources(devicebatteryplugin PRIVATE
     devicemodel.cpp
+    qmltypes.h
 )
 
 target_link_libraries(devicebatteryplugin PRIVATE

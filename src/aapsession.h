@@ -27,6 +27,9 @@ Q_SIGNALS:
     void batteryChanged(const QList<BatteryPart> &parts);
     // The accessory stopped answering, so the last reported levels can no longer be trusted.
     void batteryLost();
+    // In-ear detection: where the primary and the secondary earbud are.
+    void placementsChanged(Placement primary, Placement secondary);
+    void noiseControlChanged(NoiseControl mode);
 
 private:
     void connectToAccessory();
