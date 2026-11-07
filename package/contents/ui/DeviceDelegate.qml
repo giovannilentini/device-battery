@@ -8,11 +8,11 @@ import org.kde.plasma.components as PlasmaComponents3
 // One device in the popup:
 //
 //   ( icon )  AirPods                          97%
-//             Noise cancellation
+//             Noise cancellation (or the model)
 //             (L) 97%   (R) 100%   (C) 40%
 //
 // At most one short status line ("Charging", the noise control mode, or "3 h ago" for a
-// disconnected device). The model is in the row's tooltip.
+// disconnected device).
 Item {
     id: root
 
@@ -38,10 +38,15 @@ Item {
         if (charging && parts.length === 0) {
             return i18nc("@info:status", "Charging");
         }
-        return noiseControlText(noiseControl);
+        // The model, e.g. "AirPods Pro", unless there is a noise control mode to show.
+        return noiseControlText(noiseControl) || model;
     }
 
     implicitHeight: layout.implicitHeight
+
+    // Too narrow for the status line and the earbud rings (e.g. a small desktop widget): show
+    // just the name and level.
+    readonly property bool narrow: width < Kirigami.Units.gridUnit * 14
 
     function lastSeenText() {
         const minutes = Math.max(0, Math.floor((now - lastSeen) / 60000));
@@ -84,14 +89,6 @@ Item {
         }
         return "";
     }
-
-    HoverHandler {
-        id: hover
-    }
-
-    PlasmaComponents3.ToolTip.text: root.model
-    PlasmaComponents3.ToolTip.visible: hover.hovered && root.model.length > 0
-    PlasmaComponents3.ToolTip.delay: Kirigami.Units.toolTipDelay
 
     RowLayout {
         id: layout
@@ -141,7 +138,7 @@ Item {
 
             PlasmaComponents3.Label {
                 Layout.fillWidth: true
-                visible: text.length > 0
+                visible: text.length > 0 && !root.narrow
                 text: root.status
                 textFormat: Text.PlainText
                 elide: Text.ElideRight
@@ -152,7 +149,8 @@ Item {
             // Only earbuds have parts: other devices never build the slots below.
             Loader {
                 Layout.fillWidth: true
-                active: root.parts.length > 0
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 14 // a wide list keeps the rings together
+                active: root.parts.length > 0 && !root.narrow
                 visible: active
 
                 // Three equal columns, so the row never wraps and the parts line up between devices.

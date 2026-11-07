@@ -14,7 +14,9 @@ It runs in the panel, the system tray or on the desktop:
 - **Panel and system tray:** the device closest to running out is shown inside a ring, and
   the popup lists every device. In the system tray the widget hides when nothing is
   connected and comes forward when a battery gets low.
-- **Desktop:** a grid of large rings, one per device.
+- **Desktop:** a grid of rings, one per device, that adapts to the size you give the
+  widget: the rings grow with it and the columns rearrange; when it is too small for
+  rings, it shows the list.
 
 Devices you disconnected stay listed under *Disconnected*, with their last levels in grey
 and when they were last seen ("3 h ago"), so you can check the AirPods in their case before you

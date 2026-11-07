@@ -153,23 +153,15 @@ PlasmoidItem {
         device: root.lowestDevice
     }
 
-    // On the desktop the grid of rings is shown directly; in a panel, the icon and a popup.
-    readonly property bool onDesktop: Plasmoid.formFactor === PlasmaCore.Types.Planar
+    // On the desktop the grid of rings is shown directly; in a panel or the system tray, the
+    // icon and the list in a popup. The form factor alone is not enough: the system tray hosts
+    // its widgets in a planar containment too, which it marks by drawing their heading.
+    readonly property bool inSystemTray: (Plasmoid.containmentDisplayHints & PlasmaCore.Types.ContainmentDrawsPlasmoidHeading) !== 0
+    readonly property bool onDesktop: Plasmoid.location === PlasmaCore.Types.Desktop && !inSystemTray
     preferredRepresentation: onDesktop ? fullRepresentation : null
 
-    fullRepresentation: onDesktop ? desktopView : popupView
-
-    Component {
-        id: popupView
-        FullRepresentation {
-            model: root.deviceFilter
-        }
-    }
-
-    Component {
-        id: desktopView
-        DesktopRepresentation {
-            model: root.deviceFilter
-        }
+    fullRepresentation: FullRepresentation {
+        model: root.deviceFilter
+        onDesktop: root.onDesktop
     }
 }
