@@ -154,20 +154,24 @@ Item {
                 visible: active
 
                 // Three equal columns, so the row never wraps and the parts line up between devices.
+                // The parts reported are packed into the left-most columns, in their order (left,
+                // right, case: `parts` is sorted), so a missing part leaves no hole before or
+                // between them: with only the right earbud and the case, they take the first two.
                 sourceComponent: RowLayout {
                     spacing: Kirigami.Units.smallSpacing
 
-                    // One fixed slot per component instead of a Repeater over `parts`: `parts` is a
-                    // new list on every update, which would recreate the rings each time and skip
-                    // their animation. The slots stay alive and only their values change.
+                    // Three fixed slots instead of a Repeater over `parts`: `parts` is a new list on
+                    // every update, which would recreate the rings each time and skip their
+                    // animation. The slots stay alive and only their values change.
                     Repeater {
-                        model: ["left", "right", "case"]
+                        model: 3
 
                         delegate: RowLayout {
                             id: part
 
-                            required property string modelData
-                            readonly property var info: root.parts.find(entry => entry.component === part.modelData) ?? null
+                            required property int index
+                            readonly property var info: root.parts[index] ?? null
+                            readonly property string component: info?.component ?? ""
 
                             Layout.fillWidth: true
                             Layout.preferredWidth: 1 // equal shares
@@ -183,7 +187,7 @@ Item {
 
                                 PlasmaComponents3.Label {
                                     anchors.centerIn: parent
-                                    text: root.partShortName(part.modelData)
+                                    text: root.partShortName(part.component)
                                     font: Kirigami.Theme.smallFont
                                 }
                             }
