@@ -2,6 +2,7 @@
 #include "devicemodel.h"
 
 #include "logging.h"
+#include "usbreceivers.h"
 
 #include <QDBusConnection>
 #include <QDBusMessage>
@@ -37,6 +38,7 @@ DeviceModel::DeviceModel(QObject *parent)
     connect(&m_graceTimer, &QTimer::timeout, this, &DeviceModel::syncNow);
     loadRecent();
     connect(this, &DeviceListModel::summaryChanged, this, &DeviceModel::notifyLowBatteries);
+    connect(this, &DeviceListModel::summaryChanged, this, &DeviceModel::updateSilentDevices);
 }
 
 DeviceModel::~DeviceModel() = default;
@@ -51,7 +53,9 @@ void DeviceModel::acquire()
     m_airPods = std::make_unique<AirPodsSource>();
     connect(m_upower.get(), &DeviceSource::devicesChanged, this, &DeviceModel::sync);
     connect(m_airPods.get(), &DeviceSource::devicesChanged, this, &DeviceModel::sync);
+    connect(m_airPods.get(), &AirPodsSource::connectionsChanged, this, &DeviceModel::updateSilentDevices);
     setDevices(withRecent({}));
+    refreshSilentDevices();
 }
 
 void DeviceModel::release()
@@ -68,6 +72,8 @@ void DeviceModel::release()
     m_airPods.reset(); // closes the AAP sessions
     m_graceTimer.stop();
     setDevices({}); // not "disconnected": nothing watches them any more
+    m_usbReceivers.clear();
+    updateSilentDevices();
 }
 
 void DeviceModel::sync()
@@ -191,4 +197,46 @@ void DeviceModel::notifyLowBatteries()
                << -1; // default timeout
         QDBusConnection::sessionBus().asyncCall(notify);
     }
+}
+
+QVariantList DeviceModel::silentDevicesVariant() const
+{
+    QVariantList list;
+    for (const SilentDevice &device : m_silent) {
+        list.append(QVariantMap{
+            {QStringLiteral("key"), device.key},
+            {QStringLiteral("name"), device.name},
+            {QStringLiteral("iconName"), device.iconName},
+            {QStringLiteral("audio"), device.audio},
+            {QStringLiteral("usb"), device.usb},
+        });
+    }
+    return list;
+}
+
+void DeviceModel::refreshSilentDevices()
+{
+    if (!m_airPods) {
+        return; // no widget instance
+    }
+    m_usbReceivers = usbReceiversWithoutBattery();
+    updateSilentDevices();
+}
+
+void DeviceModel::updateSilentDevices()
+{
+    const QList<SilentDevice> connected = m_airPods ? m_airPods->silentDevices() + m_usbReceivers : QList<SilentDevice>{};
+    const QList<SilentDevice> silent = silentDevices(connected, devices());
+    if (silent == m_silent) {
+        return;
+    }
+    m_silent = silent;
+    if (DEVICEBATTERY().isDebugEnabled()) {
+        QStringList names;
+        for (const SilentDevice &device : silent) {
+            names << QStringLiteral("%1 (%2)").arg(device.name, device.key);
+        }
+        qCDebug(DEVICEBATTERY).noquote() << "Connected without battery information:" << names.join(QStringLiteral(", "));
+    }
+    Q_EMIT silentDevicesChanged();
 }

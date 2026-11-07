@@ -285,6 +285,32 @@ private Q_SLOTS:
         QVERIFY(devicesToWarn({unknown, gone}, warned, 20).isEmpty());
     }
 
+    void silentDevicesAreTheOnesWithoutLevel()
+    {
+        const auto silent = [](const QString &key, const QString &name) {
+            SilentDevice device;
+            device.key = key;
+            device.name = name;
+            return device;
+        };
+        Device keyboard = makeDevice(QStringLiteral("upower:/kbd"), QStringLiteral("YZ87-BT1"), 100);
+        keyboard.address = QStringLiteral("DC:56:10:C9:C0:6B");
+        Device goneHeadset = makeGone(QStringLiteral("upower:/hs"), QStringLiteral("Headset"), 1, 50);
+        goneHeadset.address = QStringLiteral("AA:BB:CC:DD:EE:FF");
+
+        const QList<SilentDevice> result = silentDevices(
+            {
+                silent(QStringLiteral("bt:DC:56:10:C9:C0:6B"), QStringLiteral("YZ87-BT1")), // reports a level
+                silent(QStringLiteral("bt:AA:BB:CC:DD:EE:FF"), QStringLiteral("Headset")), // only its old level
+                silent(QStringLiteral("usb:05ac:024f"), QStringLiteral("2.4G Dongle")),
+            },
+            {keyboard, goneHeadset});
+
+        QCOMPARE(result.size(), 2);
+        QCOMPARE(result.at(0).name, QStringLiteral("2.4G Dongle")); // sorted by name
+        QCOMPARE(result.at(1).name, QStringLiteral("Headset")); // connected again, but silent now
+    }
+
     void lowestDevice_data()
     {
         QTest::addColumn<QList<Device>>("devices");

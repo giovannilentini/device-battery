@@ -29,6 +29,10 @@ class DeviceModel : public DeviceListModel
     QML_ELEMENT
     QML_SINGLETON
 
+    // Connected devices that report no battery level, so they are not shown as devices:
+    // [{key, name, iconName, audio, usb}, ...] (see SilentDevice).
+    Q_PROPERTY(QVariantList silentDevices READ silentDevicesVariant NOTIFY silentDevicesChanged)
+
 public:
     explicit DeviceModel(QObject *parent = nullptr);
     ~DeviceModel() override;
@@ -40,13 +44,22 @@ public:
     // power management already notifies about them. The texts come from QML, which has the
     // widget's translations: in `title` %1 is the device name, in `body` %1 the level.
     // Every widget instance calls this; as the backend is shared, the last call wins.
+    QVariantList silentDevicesVariant() const;
+    // Looks for USB wireless receivers without a battery again. Cheap, but it reads sysfs, so
+    // the popup calls it when it opens rather than on a timer.
+    Q_INVOKABLE void refreshSilentDevices();
+
     // Drops the recently disconnected devices, also from the cache file.
     Q_INVOKABLE void forgetDisconnected();
 
     Q_INVOKABLE void configureNotifications(bool enabled, int threshold, const QString &title, const QString &body);
 
+Q_SIGNALS:
+    void silentDevicesChanged();
+
 private:
     void sync();
+    void updateSilentDevices();
     void syncNow(); // without keeping vanished devices around
     QList<Device> connectedDevices() const;
     QList<Device> withRecent(const QList<Device> &connected) const;
@@ -65,4 +78,7 @@ private:
     QString m_notifyTitle;
     QString m_notifyBody;
     QSet<QString> m_warned; // see devicesToWarn()
+
+    QList<SilentDevice> m_usbReceivers; // from the last refreshSilentDevices()
+    QList<SilentDevice> m_silent;
 };

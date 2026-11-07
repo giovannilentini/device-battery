@@ -52,6 +52,7 @@ uses.
 | `src/airpodssource.{h,cpp}` | Finds connected Apple audio devices through BlueZ and runs a session for each |
 | `src/upowerdevice.{h,cpp}` | Maps UPower properties to a `Device` (pure functions, unit tested) |
 | `src/upowersource.{h,cpp}` | Peripheral batteries from UPower |
+| `src/usbreceivers.{h,cpp}` | USB wireless receivers without a battery, from sysfs (unit tested) |
 | `src/devicelistmodel.{h,cpp}` | The list model: merging, sorting and minimal row updates (unit tested) |
 | `src/devicefilter.{h,cpp}` | Per-instance view of the list: hidden and renamed devices (unit tested) |
 | `src/devicemodel.{h,cpp}` | The QML singleton that feeds both sources into the list model |
@@ -223,6 +224,12 @@ QT_LOGGING_RULES="devicebattery.debug=true" plasmashell --replace
 - **AirPods or Beats show wrong levels.** The debug log above contains the raw bytes
   of every battery report (`Battery report from … components: 04 00 04 00 …`).
   Please open an issue with your model and those lines.
+- **A device is missing.** The widget shows every device Linux reports a battery for. The
+  popup also lists connected devices that report none: Bluetooth devices, and USB wireless
+  receivers without a battery (it looks for those when the popup opens). Many keyboards and
+  mice report their battery over Bluetooth but not through their 2.4 GHz receiver, whose
+  level only the vendor's app can read; connect them over Bluetooth to see it. To stop
+  listing a device that has no battery, untick it on the *Devices* settings page.
 - **A Bluetooth device is missing.** Run `upower -d`. If the device isn't listed
   there, it doesn't report its battery to Linux. Some headsets only do so when
   BlueZ's experimental features are on (`Experimental = true` in

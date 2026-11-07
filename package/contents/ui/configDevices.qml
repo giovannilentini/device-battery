@@ -41,6 +41,14 @@ KCM.ScrollViewKCM {
             name: device.name,
             iconName: device.iconName,
         }));
+        // Connected devices without a battery level, so their note in the popup can be hidden.
+        for (const device of DeviceModel.silentDevices) {
+            list.push({
+                key: device.key,
+                name: device.name,
+                iconName: device.iconName,
+            });
+        }
         const known = new Set(list.map(entry => entry.key));
         for (const key of cfg_hiddenDevices.concat(Object.keys(names))) {
             if (known.has(key)) {
@@ -64,6 +72,9 @@ KCM.ScrollViewKCM {
     Connections {
         target: DeviceModel
         function onSummaryChanged() {
+            page.rebuildEntries();
+        }
+        function onSilentDevicesChanged() {
             page.rebuildEntries();
         }
     }

@@ -177,6 +177,23 @@ QList<Device> vanishedDevices(const QList<Device> &shown, const QList<Device> &n
 // after it charged or rose above the threshold, or disconnected.
 QList<Device> devicesToWarn(const QList<Device> &devices, QSet<QString> &warned, int threshold);
 
+// A connected device that reports no battery level to Linux, e.g. a wireless receiver whose
+// keyboard reports its level only through the vendor's own app. Listed so that a device the
+// widget cannot show is not silently missing.
+struct SilentDevice {
+    QString key; // "bt:<address>" (as deviceKey()) or "usb:<vendor>:<product>"
+    QString name;
+    QString iconName;
+    bool audio = false; // a Bluetooth headset or headphones (see the hint in the popup)
+    bool usb = false; // a USB wireless receiver
+
+    bool operator==(const SilentDevice &) const = default;
+};
+
+// The devices of `connected` that are not among the connected devices of `shown`, i.e. that
+// have no battery level from any source, sorted by name.
+QList<SilentDevice> silentDevices(const QList<SilentDevice> &connected, const QList<Device> &shown);
+
 // Combines the devices of all sources into display order (by name, then id).
 // A device in `preferred` hides any device in `fallback` with the same Bluetooth address.
 QList<Device> mergeDevices(const QList<Device> &preferred, const QList<Device> &fallback);

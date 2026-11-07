@@ -6,6 +6,7 @@ ecm_add_tests(
     devicelistmodeltest.cpp
     devicetest.cpp
     upowerdevicetest.cpp
+    usbreceiverstest.cpp
     LINK_LIBRARIES devicebattery_core Qt6::Test
 )
 

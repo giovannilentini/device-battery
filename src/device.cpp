@@ -409,6 +409,26 @@ QList<Device> devicesToWarn(const QList<Device> &devices, QSet<QString> &warned,
     return toWarn;
 }
 
+QList<SilentDevice> silentDevices(const QList<SilentDevice> &connected, const QList<Device> &shown)
+{
+    QSet<QString> reported;
+    for (const Device &device : shown) {
+        if (device.connected) {
+            reported.insert(deviceKey(device));
+        }
+    }
+    QList<SilentDevice> silent;
+    for (const SilentDevice &device : connected) {
+        if (!reported.contains(device.key)) {
+            silent.append(device);
+        }
+    }
+    std::ranges::sort(silent, [](const SilentDevice &a, const SilentDevice &b) {
+        return QString::localeAwareCompare(a.name, b.name) < 0;
+    });
+    return silent;
+}
+
 QList<Device> mergeDevices(const QList<Device> &preferred, const QList<Device> &fallback)
 {
     QList<Device> devices = preferred;
