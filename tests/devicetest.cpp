@@ -100,6 +100,59 @@ private Q_SLOTS:
         QVERIFY(!device.charging);
     }
 
+    // AirPods report placements for the primary and secondary earbud; the primary is the
+    // first earbud of the battery report, whatever the side.
+    void placementsFollowThePrimaryEarbud()
+    {
+        QList<BatteryPart> parts{{Component::Case, 50, false}, {Component::Right, 80, false}, {Component::Left, 40, false}};
+        applyPlacements(parts, Placement::InEar, Placement::InCase);
+
+        QCOMPARE(parts.at(0).placement, Placement::Unknown); // the case has none
+        QCOMPARE(parts.at(1).placement, Placement::InEar); // right, listed first
+        QCOMPARE(parts.at(2).placement, Placement::InCase);
+    }
+
+    // With in-ear detection, the earbud in the ear wins even over an emptier one that lies
+    // on the table (not charging, so without detection it would count as in use).
+    void showsTheEarbudInTheEar()
+    {
+        Device device;
+        applyBatteryParts(device,
+                          {{Component::Left, 30, false, Placement::OutOfEar}, {Component::Right, 70, false, Placement::InEar}, {Component::Case, 50, false}});
+
+        QCOMPARE(device.percentage, 70);
+        QCOMPARE(device.parts.at(1).placement, Placement::InEar);
+    }
+
+    // Both out of the ears: the emptiest earbud, as without detection.
+    void noEarbudInTheEar()
+    {
+        Device device;
+        applyBatteryParts(device,
+                          {{Component::Left, 30, false, Placement::OutOfEar}, {Component::Right, 70, true, Placement::InCase}, {Component::Case, 50, false}});
+
+        QCOMPARE(device.percentage, 30);
+        QVERIFY(!device.charging);
+    }
+
+    void modelNames_data()
+    {
+        QTest::addColumn<QString>("modalias");
+        QTest::addColumn<QString>("model");
+        QTest::newRow("AirPods Pro 2") << QStringLiteral("bluetooth:v004Cp2014d0B5A") << QStringLiteral("AirPods Pro (2nd generation)");
+        QTest::newRow("lower case") << QStringLiteral("bluetooth:v004cp201bd215c") << QStringLiteral("AirPods 4 (ANC)");
+        QTest::newRow("unknown product") << QStringLiteral("bluetooth:v004CpFFFFd0001") << QString();
+        QTest::newRow("other vendor") << QStringLiteral("bluetooth:v0075p2014d0001") << QString();
+        QTest::newRow("usb") << QStringLiteral("usb:v05ACp2014d0001") << QString();
+    }
+
+    void modelNames()
+    {
+        QFETCH(QString, modalias);
+        QFETCH(QString, model);
+        QCOMPARE(appleModelName(modalias), model);
+    }
+
     void lowestDevice_data()
     {
         QTest::addColumn<QList<Device>>("devices");

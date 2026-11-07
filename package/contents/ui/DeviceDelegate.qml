@@ -8,6 +8,7 @@ import org.kde.plasma.components as PlasmaComponents3
 // One device in the popup:
 //
 //   ( icon )  AirPods                          97%
+//             AirPods Pro · Noise cancellation
 //             (o) Left 97%  (o) Right 100%  (o) Case 40%
 Item {
     id: root
@@ -19,6 +20,25 @@ Item {
     required property string coarseLevel
     required property bool charging
     required property var parts
+    required property string model
+    required property string noiseControl
+
+    // "AirPods Pro · Noise cancellation": what we know about the device besides its levels.
+    readonly property string details: [model, noiseControlText(noiseControl)].filter(text => text.length > 0).join(" · ")
+
+    function noiseControlText(mode) {
+        switch (mode) {
+        case "off":
+            return i18nc("@info:status noise control mode", "Noise control off");
+        case "cancellation":
+            return i18nc("@info:status noise control mode", "Noise cancellation");
+        case "transparency":
+            return i18nc("@info:status noise control mode", "Transparency");
+        case "adaptive":
+            return i18nc("@info:status noise control mode", "Adaptive");
+        }
+        return "";
+    }
 
     implicitHeight: layout.implicitHeight
 
@@ -79,6 +99,16 @@ Item {
             }
 
             PlasmaComponents3.Label {
+                Layout.fillWidth: true
+                visible: text.length > 0
+                text: root.details
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+                opacity: 0.7
+                font: Kirigami.Theme.smallFont
+            }
+
+            PlasmaComponents3.Label {
                 visible: root.charging && root.parts.length === 0
                 text: i18nc("@info:status", "Charging")
                 opacity: 0.7
@@ -107,7 +137,12 @@ Item {
                             required property string modelData
                             readonly property var info: root.parts.find(entry => entry.component === part.modelData) ?? null
 
+                            // An earbud that is out of the ear or in the case is dimmed, so the
+                            // ones in use stand out (only with in-ear detection).
+                            readonly property bool idle: info !== null && (info.placement === "out" || info.placement === "case")
+
                             visible: info !== null
+                            opacity: idle ? 0.5 : 1
                             spacing: Kirigami.Units.smallSpacing
 
                             BatteryRing {

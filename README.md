@@ -3,7 +3,8 @@
 A KDE Plasma 6 widget that shows the battery level of your wireless devices, like
 Apple's *Batteries* widget:
 
-- **AirPods and Beats**: left earbud, right earbud and charging case, each to 1 %
+- **AirPods and Beats**: left earbud, right earbud and charging case, each to 1 %,
+  which earbuds are in your ears, the noise control mode and the model
 - **Headphones and headsets** that report their battery over Bluetooth
 - **Keyboards, mice, touchpads and game controllers**, over Bluetooth or a USB
   receiver (e.g. Logitech Unifying/Lightspeed)
@@ -180,7 +181,16 @@ QT_LOGGING_RULES="devicebattery.debug=true" plasmashell --replace
   connected (at most every 2 minutes), and reconnects if a session goes silent for
   5 minutes. After five failed attempts in a row it hides the last levels rather
   than showing stale ones. The overall level of AirPods is that of the emptiest
-  earbud in use (one charging in the case is left out); the tooltip lists each earbud and the case.
+  earbud in use: one in an ear or, with in-ear detection turned off, one that is not
+  charging in the case. Earbuds out of your ears are dimmed in the popup, and the tooltip
+  lists each earbud and the case.
+- **The earbud in your ear is shown as out of it, and the other way round.** AirPods
+  report in-ear detection for their *primary* and *secondary* earbud, and the widget takes
+  the earbud listed first in battery reports as the primary. If yours swap them, please
+  open an issue with the `Ear detection report` and `Battery report` lines of the debug log.
+- **The model is missing or wrong.** The model comes from the product ID in BlueZ
+  (`bluetoothctl info <address>`, line `Modalias`). Please open an issue with that line and
+  the name of your model.
 - **AirPods or Beats show wrong levels.** The debug log above contains the raw bytes
   of every battery report (`Battery report from … components: 04 00 04 00 …`).
   Please open an issue with your model and those lines.

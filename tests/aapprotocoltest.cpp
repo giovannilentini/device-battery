@@ -123,6 +123,61 @@ private Q_SLOTS:
         QVERIFY(!Aap::parseBatteryPacket(packet).has_value());
     }
 
+    void parsesEarDetection_data()
+    {
+        QTest::addColumn<QByteArray>("packet");
+        QTest::addColumn<Placement>("primary");
+        QTest::addColumn<Placement>("secondary");
+        QTest::newRow("both in ears") << QByteArray::fromHex("0400040006000000") << Placement::InEar << Placement::InEar;
+        QTest::newRow("one out, one in the case") << QByteArray::fromHex("0400040006000102") << Placement::OutOfEar << Placement::InCase;
+        QTest::newRow("unknown state") << QByteArray::fromHex("0400040006000700") << Placement::Unknown << Placement::InEar;
+    }
+
+    void parsesEarDetection()
+    {
+        QFETCH(QByteArray, packet);
+        QFETCH(Placement, primary);
+        QFETCH(Placement, secondary);
+        const auto placements = Aap::parseEarDetectionPacket(packet);
+        QVERIFY(placements.has_value());
+        QCOMPARE(placements->first, primary);
+        QCOMPARE(placements->second, secondary);
+        QVERIFY(!Aap::parseBatteryPacket(packet).has_value());
+    }
+
+    void parsesNoiseControl_data()
+    {
+        QTest::addColumn<QByteArray>("packet");
+        QTest::addColumn<NoiseControl>("mode");
+        QTest::newRow("off") << QByteArray::fromHex("0400040009000d01000000") << NoiseControl::Off;
+        QTest::newRow("cancellation") << QByteArray::fromHex("0400040009000d02000000") << NoiseControl::Cancellation;
+        QTest::newRow("transparency") << QByteArray::fromHex("0400040009000d03000000") << NoiseControl::Transparency;
+        QTest::newRow("adaptive") << QByteArray::fromHex("0400040009000d04000000") << NoiseControl::Adaptive;
+        QTest::newRow("unknown mode") << QByteArray::fromHex("0400040009000d09000000") << NoiseControl::Unknown;
+    }
+
+    void parsesNoiseControl()
+    {
+        QFETCH(QByteArray, packet);
+        QFETCH(NoiseControl, mode);
+        QCOMPARE(Aap::parseNoiseControlPacket(packet), std::optional(mode));
+    }
+
+    void ignoresOtherControlPackets_data()
+    {
+        QTest::addColumn<QByteArray>("packet");
+        QTest::newRow("other setting") << QByteArray::fromHex("0400040009001a01000000");
+        QTest::newRow("truncated") << QByteArray::fromHex("0400040009000d");
+        QTest::newRow("battery") << QByteArray::fromHex("040004000400010401610201");
+    }
+
+    void ignoresOtherControlPackets()
+    {
+        QFETCH(QByteArray, packet);
+        QVERIFY(!Aap::parseNoiseControlPacket(packet).has_value());
+        QVERIFY(!Aap::parseEarDetectionPacket(packet).has_value());
+    }
+
     void outgoingPacketsMatchProtocol()
     {
         QCOMPARE(Aap::handshakePacket().toHex(), QByteArray("00000400010002000000000000000000"));

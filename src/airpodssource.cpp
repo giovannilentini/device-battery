@@ -199,7 +199,11 @@ void AirPodsSource::start(const QString &path, const QVariantMap &properties)
         .name = displayName(properties),
         .session = nullptr,
         .parts = {},
+        .model = appleModelName(properties.value(QStringLiteral("Modalias")).toString()),
     };
+    if (tracked.name.contains(tracked.model, Qt::CaseInsensitive)) {
+        tracked.model.clear(); // e.g. "AirPods Max" named "AirPods Max": nothing to add
+    }
     qCDebug(DEVICEBATTERY) << "Tracking" << tracked.name << tracked.address;
     tracked.session = new AapSession(tracked.address, this);
     connect(tracked.session, &AapSession::batteryChanged, this, [this, path](const QList<BatteryPart> &parts) {
@@ -209,10 +213,27 @@ void AirPodsSource::start(const QString &path, const QVariantMap &properties)
             publish(*entry);
         }
     });
+    connect(tracked.session, &AapSession::placementsChanged, this, [this, path](Placement primary, Placement secondary) {
+        const auto entry = m_tracked.find(path);
+        if (entry != m_tracked.end()) {
+            entry->primary = primary;
+            entry->secondary = secondary;
+            publish(*entry);
+        }
+    });
+    connect(tracked.session, &AapSession::noiseControlChanged, this, [this, path](NoiseControl mode) {
+        const auto entry = m_tracked.find(path);
+        if (entry != m_tracked.end()) {
+            entry->noiseControl = mode;
+            publish(*entry);
+        }
+    });
     connect(tracked.session, &AapSession::batteryLost, this, [this, path] {
         const auto entry = m_tracked.find(path);
         if (entry != m_tracked.end()) {
             entry->parts.clear();
+            entry->primary = entry->secondary = Placement::Unknown;
+            entry->noiseControl = NoiseControl::Unknown;
             publish(*entry); // withdraws the device; a UPower entry for it may show instead
         }
     });
@@ -242,6 +263,10 @@ void AirPodsSource::publish(const Tracked &tracked)
     device.id = deviceId(tracked.address);
     device.address = tracked.address;
     device.name = tracked.name;
-    applyBatteryParts(device, tracked.parts); // fills kind, levels and parts
+    device.model = tracked.model;
+    device.noiseControl = tracked.noiseControl;
+    QList<BatteryPart> parts = tracked.parts;
+    applyPlacements(parts, tracked.primary, tracked.secondary);
+    applyBatteryParts(device, parts); // fills kind, levels and parts
     upsert(device);
 }

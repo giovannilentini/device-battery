@@ -18,6 +18,7 @@ QVariantList partsToVariant(const QList<BatteryPart> &parts)
             {QStringLiteral("component"), componentKey(part.component)},
             {QStringLiteral("percentage"), part.percentage},
             {QStringLiteral("charging"), part.charging},
+            {QStringLiteral("placement"), placementKey(part.placement)},
         });
     }
     return list;
@@ -45,6 +46,12 @@ QList<int> changedRoles(const Device &before, const Device &after)
     }
     if (before.parts != after.parts) {
         roles << DeviceListModel::PartsRole;
+    }
+    if (before.model != after.model) {
+        roles << DeviceListModel::ModelRole;
+    }
+    if (before.noiseControl != after.noiseControl) {
+        roles << DeviceListModel::NoiseControlRole;
     }
     return roles;
 }
@@ -85,6 +92,10 @@ QVariant DeviceListModel::data(const QModelIndex &index, int role) const
         return partsToVariant(device.parts);
     case CoarseLevelRole:
         return coarseLevelKey(device.coarseLevel);
+    case ModelRole:
+        return device.model;
+    case NoiseControlRole:
+        return noiseControlKey(device.noiseControl);
     }
     return {};
 }
@@ -98,6 +109,8 @@ QHash<int, QByteArray> DeviceListModel::roleNames() const
         {ChargingRole, "charging"},
         {PartsRole, "parts"},
         {CoarseLevelRole, "coarseLevel"},
+        {ModelRole, "model"},
+        {NoiseControlRole, "noiseControl"},
     };
 }
 
@@ -113,6 +126,8 @@ QVariantList DeviceListModel::summary() const
             {QStringLiteral("coarseLevel"), coarseLevelKey(device.coarseLevel)},
             {QStringLiteral("charging"), device.charging},
             {QStringLiteral("parts"), partsToVariant(device.parts)},
+            {QStringLiteral("model"), device.model},
+            {QStringLiteral("noiseControl"), noiseControlKey(device.noiseControl)},
         });
     }
     return list;

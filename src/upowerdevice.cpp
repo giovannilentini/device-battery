@@ -145,5 +145,7 @@ Device UPower::toDevice(const QString &path, const QVariantMap &properties)
         .coarseLevel = coarseLevelOf(properties),
         .charging = properties.value(QStringLiteral("State")).toUInt() == StateCharging,
         .parts = {},
+        .model = {},
+        .noiseControl = NoiseControl::Unknown,
     };
 }

@@ -2,6 +2,7 @@
 #include "device.h"
 
 #include <QCollator>
+#include <QHash>
 #include <QLocale>
 #include <QRegularExpression>
 #include <QSet>
@@ -72,6 +73,88 @@ QString coarseLevelKey(CoarseLevel level)
     return {};
 }
 
+QString placementKey(Placement placement)
+{
+    switch (placement) {
+    case Placement::InEar:
+        return QStringLiteral("ear");
+    case Placement::OutOfEar:
+        return QStringLiteral("out");
+    case Placement::InCase:
+        return QStringLiteral("case");
+    case Placement::Unknown:
+        break;
+    }
+    return {};
+}
+
+QString noiseControlKey(NoiseControl mode)
+{
+    switch (mode) {
+    case NoiseControl::Off:
+        return QStringLiteral("off");
+    case NoiseControl::Cancellation:
+        return QStringLiteral("cancellation");
+    case NoiseControl::Transparency:
+        return QStringLiteral("transparency");
+    case NoiseControl::Adaptive:
+        return QStringLiteral("adaptive");
+    case NoiseControl::Unknown:
+        break;
+    }
+    return {};
+}
+
+QString appleModelName(const QString &modalias)
+{
+    // "bluetooth:v004Cp2014d0B5A": Apple's vendor ID 0x004C, then the product ID.
+    static const QRegularExpression pattern(QStringLiteral("^bluetooth:v004Cp([0-9A-F]{4})"), QRegularExpression::CaseInsensitiveOption);
+    const QRegularExpressionMatch match = pattern.match(modalias);
+    if (!match.hasMatch()) {
+        return {};
+    }
+    // Product names are proper names, so they are not translated.
+    static const QHash<quint16, QString> names{
+        {0x2002, QStringLiteral("AirPods (1st generation)")},
+        {0x200F, QStringLiteral("AirPods (2nd generation)")},
+        {0x2013, QStringLiteral("AirPods (3rd generation)")},
+        {0x2019, QStringLiteral("AirPods 4")},
+        {0x201B, QStringLiteral("AirPods 4 (ANC)")},
+        {0x200E, QStringLiteral("AirPods Pro")},
+        {0x2014, QStringLiteral("AirPods Pro (2nd generation)")},
+        {0x2024, QStringLiteral("AirPods Pro (2nd generation, USB-C)")},
+        {0x200A, QStringLiteral("AirPods Max")},
+        {0x2003, QStringLiteral("Powerbeats3")},
+        {0x2005, QStringLiteral("BeatsX")},
+        {0x2006, QStringLiteral("Beats Solo3")},
+        {0x2009, QStringLiteral("Beats Studio3")},
+        {0x200B, QStringLiteral("Powerbeats Pro")},
+        {0x200C, QStringLiteral("Beats Solo Pro")},
+        {0x200D, QStringLiteral("Powerbeats")},
+        {0x2010, QStringLiteral("Beats Flex")},
+        {0x2011, QStringLiteral("Beats Studio Buds")},
+        {0x2012, QStringLiteral("Beats Fit Pro")},
+        {0x2016, QStringLiteral("Beats Studio Buds+")},
+        {0x2017, QStringLiteral("Beats Studio Pro")},
+    };
+    return names.value(match.captured(1).toUShort(nullptr, 16));
+}
+
+void applyPlacements(QList<BatteryPart> &parts, Placement primary, Placement secondary)
+{
+    bool primaryDone = false;
+    for (BatteryPart &part : parts) {
+        if (part.component != BatteryPart::Component::Left && part.component != BatteryPart::Component::Right) {
+            continue;
+        }
+        part.placement = primaryDone ? secondary : primary;
+        if (primaryDone) {
+            return;
+        }
+        primaryDone = true;
+    }
+}
+
 void applyBatteryParts(Device &device, QList<BatteryPart> parts)
 {
     using Component = BatteryPart::Component;
@@ -90,8 +173,9 @@ void applyBatteryParts(Device &device, QList<BatteryPart> parts)
     device.kind = DeviceKind::Earbuds;
     device.parts = parts;
 
-    // The part whose level we show: the emptiest earbud in use, i.e. not charging in the case;
-    // with both earbuds in the case, the emptiest of them; with no earbud reported, the case.
+    // The part whose level we show: the emptiest earbud in use, i.e. in an ear or, without
+    // in-ear detection, not charging in the case; with no earbud in use, the emptiest of them;
+    // with no earbud reported, the case.
     // A part without a reading never wins, so one silent earbud cannot hide the other.
     const auto emptiest = [&parts](auto &&accept) -> const BatteryPart * {
         const BatteryPart *best = nullptr;
@@ -102,8 +186,14 @@ void applyBatteryParts(Device &device, QList<BatteryPart> parts)
         }
         return best;
     };
-    const BatteryPart *shown = emptiest([](const BatteryPart &part) {
-        return part.component != Component::Case && !part.charging;
+    const bool earDetection = std::ranges::any_of(parts, [](const BatteryPart &part) {
+        return part.placement != Placement::Unknown;
+    });
+    const BatteryPart *shown = emptiest([earDetection](const BatteryPart &part) {
+        if (part.component == Component::Case) {
+            return false;
+        }
+        return earDetection ? part.placement == Placement::InEar : !part.charging;
     });
     if (!shown) {
         shown = emptiest([](const BatteryPart &part) {

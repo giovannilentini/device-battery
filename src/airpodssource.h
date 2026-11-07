@@ -32,7 +32,11 @@ private:
         QString address;
         QString name;
         AapSession *session = nullptr;
-        QList<BatteryPart> parts; // last report, kept so a rename can be published
+        QList<BatteryPart> parts; // last report, in its order (see applyPlacements())
+        QString model;
+        Placement primary = Placement::Unknown;
+        Placement secondary = Placement::Unknown;
+        NoiseControl noiseControl = NoiseControl::Unknown;
     };
 
     void enumerate();

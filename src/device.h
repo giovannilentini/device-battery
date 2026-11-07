@@ -32,6 +32,23 @@ enum class CoarseLevel {
     Full,
 };
 
+// Where an earbud is, as AirPods report it (in-ear detection).
+enum class Placement {
+    Unknown, // not reported, e.g. in-ear detection is off or the model has none
+    InEar,
+    OutOfEar,
+    InCase,
+};
+
+// The noise control mode of AirPods and Beats that have one. Only shown, never changed.
+enum class NoiseControl {
+    Unknown, // not reported, e.g. the model has no noise control
+    Off,
+    Cancellation,
+    Transparency,
+    Adaptive,
+};
+
 // One independently powered component of a device, e.g. the left AirPod or the case.
 struct BatteryPart {
     enum class Component {
@@ -44,6 +61,7 @@ struct BatteryPart {
     Component component = Component::Main;
     int percentage = -1; // 0-100, or -1 when unknown
     bool charging = false;
+    Placement placement = Placement::Unknown; // earbuds only
 
     bool operator==(const BatteryPart &) const = default;
 };
@@ -58,6 +76,8 @@ struct Device {
     CoarseLevel coarseLevel = CoarseLevel::None;
     bool charging = false;
     QList<BatteryPart> parts; // empty for single-battery devices
+    QString model; // product name if known and not just the device name, e.g. "AirPods Pro (2nd generation)"
+    NoiseControl noiseControl = NoiseControl::Unknown;
 
     bool operator==(const Device &) const = default;
 };
@@ -72,11 +92,30 @@ QString componentKey(BatteryPart::Component component);
 // "full"), or an empty string for CoarseLevel::None.
 QString coarseLevelKey(CoarseLevel level);
 
+// Short, translatable-in-QML key for a placement ("ear", "out", "case"), or an empty string
+// for Placement::Unknown.
+QString placementKey(Placement placement);
+
+// Short, translatable-in-QML key for a noise control mode ("off", "cancellation",
+// "transparency", "adaptive"), or an empty string for NoiseControl::Unknown.
+QString noiseControlKey(NoiseControl mode);
+
+// The product name of an Apple or Beats audio device from its BlueZ "Modalias", e.g.
+// "bluetooth:v004Cp2014d0B5A" -> "AirPods Pro (2nd generation)". Empty if the product is unknown.
+QString appleModelName(const QString &modalias);
+
+// Sets the placement of the earbuds in `parts` from an in-ear detection report. AirPods report
+// it for the primary and the secondary earbud rather than for left and right; the primary
+// earbud is the one listed first in their battery reports, so `parts` must still be in the
+// order of the report. Other parts are left alone.
+void applyPlacements(QList<BatteryPart> &parts, Placement primary, Placement secondary);
+
 // Fills kind, percentage, charging and parts of `device` from the parts reported by
-// AirPods/Beats. The overall level is that of the emptiest earbud in use (one charging in
-// the case is not), because that is the one that runs out first; with both earbuds in the
-// case it is the emptiest of them, and with no earbud reported the case. Parts without a
-// known level are skipped. The device counts as charging only if the part shown is.
+// AirPods/Beats. The overall level is that of the emptiest earbud in use, because that is
+// the one that runs out first. An earbud is in use if it is in an ear or, without in-ear
+// detection, if it is not charging in the case. With no earbud in use it is the emptiest
+// earbud, and with no earbud reported the case. Parts without a known level are skipped.
+// The device counts as charging only if the part shown is.
 void applyBatteryParts(Device &device, QList<BatteryPart> parts);
 
 // Index of the device closest to running out, or -1 if no device has a known level.

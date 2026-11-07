@@ -50,9 +50,16 @@ PlasmoidItem {
             name = i18nc("@info:tooltip charging case", "Case");
             break;
         }
-        return part.charging
+        let text = part.charging
             ? i18nc("@info:tooltip earbud or case: battery level", "%1 %2, charging", name, levelText(part.percentage, ""))
             : i18nc("@info:tooltip earbud or case: battery level", "%1 %2", name, levelText(part.percentage, ""));
+        switch (part.placement) {
+        case "ear":
+            return i18nc("@info:tooltip earbud: battery level, where it is", "%1, in ear", text);
+        case "out":
+            return i18nc("@info:tooltip earbud: battery level, where it is", "%1, out of ear", text);
+        }
+        return text; // "case": the earbud charges, which the text already says
     }
 
     readonly property bool batteryLow: lowestDevice !== null
