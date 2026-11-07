@@ -9,6 +9,12 @@ Apple's *Batteries* widget:
 - **Keyboards, mice, touchpads and game controllers**, over Bluetooth or a USB
   receiver (e.g. Logitech Unifying/Lightspeed)
 
+<p align="center">
+  <img src="docs/screenshots/popup.png" alt="The popup: AirPods with each earbud and the case, a keyboard, a mouse and a disconnected controller" width="45%">
+  &nbsp;
+  <img src="docs/screenshots/desktop.png" alt="On the desktop: a grid of battery rings" width="40%">
+</p>
+
 It runs in the panel, the system tray or on the desktop:
 
 - **Panel and system tray:** the device closest to running out is shown inside a ring, and
@@ -82,12 +88,33 @@ uses.
 - **Survives daemon restarts.** If `bluetoothd` or `upowerd` restarts, the widget drops
   what it knew and reads the devices again.
 
-## Build and install
+## Install
 
-The widget contains a compiled plugin, so it has to be built from source. Installing
-it from *Get New Widgets…* in Plasma does not work. You need **Plasma 6** (Qt 6.6 or
-newer), so for example Fedora 40+, Arch Linux, Debian 13 (trixie), Kubuntu 25.04+,
-KDE neon or openSUSE Tumbleweed.
+The widget contains a compiled plugin, so *Get New Widgets…* in Plasma cannot install it:
+use a package for your distribution, or build it from source. You need **Plasma 6**.
+
+**Arch Linux, Manjaro, EndeavourOS** (AUR):
+
+```sh
+yay -S plasma6-applets-device-battery
+```
+
+**Fedora** (COPR):
+
+```sh
+sudo dnf copr enable giovannilentini/device-battery
+sudo dnf install device-battery
+```
+
+Then restart Plasma (`systemctl --user restart plasma-plasmashell`), right-click the panel
+→ *Add Widgets…* → **Device Battery**. In the system tray, go to *Configure System Tray… →
+Entries* instead.
+
+## Build from source
+
+On other distributions, or to try the latest code, build it yourself. You need Plasma 6
+(Qt 6.6 or newer), e.g. Debian 13 (trixie), Kubuntu 25.04+, KDE neon or openSUSE
+Tumbleweed.
 
 ### 1. Install the build dependencies
 
