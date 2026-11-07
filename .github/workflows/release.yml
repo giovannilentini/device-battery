@@ -1,0 +1,88 @@
+name: Release
+
+# Pushing a tag such as v1.2.0 publishes a GitHub release with the source tarball and a Fedora
+# source RPM (which COPR can build). It can also be run by hand for an existing tag.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to release, e.g. v1.1.0
+        required: true
+
+permissions:
+  contents: write # create the release and upload its files
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - name: Install dependencies
+        run: >
+          dnf install -y --setopt=install_weak_deps=False
+          git cmake ninja-build gcc-c++ extra-cmake-modules
+          qt6-qtbase-devel qt6-qtdeclarative-devel bluez-libs-devel dbus-daemon
+          rpm-build gh
+
+      # The packaging files come from the commit the workflow runs on (for a tag push, the tag
+      # itself; when run by hand, the branch), the sources from the tag. So a tag made before a
+      # packaging fix can still be released, without moving the tag.
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # the tag and its message, which becomes the release notes
+
+      - name: Check that every version matches the tag
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git rev-parse --verify --quiet "refs/tags/$TAG" > /dev/null || { echo "::error::no tag $TAG"; exit 1; }
+          version="${TAG#v}"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          fail=0
+          check() { # file, version found in it
+            if [ "$2" != "$version" ]; then
+              echo "::error file=$1::version '$2' does not match tag $TAG"
+              fail=1
+            fi
+          }
+          check CMakeLists.txt "$(git show "$TAG:CMakeLists.txt" | sed -n 's/^project(device-battery VERSION \([0-9.]*\).*/\1/p')"
+          check package/metadata.json "$(git show "$TAG:package/metadata.json" | sed -n 's/.*"Version": "\([^"]*\)".*/\1/p')"
+          check packaging/fedora/device-battery.spec "$(sed -n 's/^Version: *//p' packaging/fedora/device-battery.spec)"
+          check packaging/arch/PKGBUILD "$(sed -n 's/^pkgver=//p' packaging/arch/PKGBUILD)"
+          exit $fail
+
+      - name: Source tarball
+        run: |
+          mkdir dist
+          git archive --format=tar.gz --prefix="device-battery-$VERSION/" -o "dist/device-battery-$VERSION.tar.gz" "$TAG"
+
+      # From the tarball, so the release is known to build from exactly what it ships.
+      - name: Build and test
+        run: |
+          tar xzf "dist/device-battery-$VERSION.tar.gz" -C "$RUNNER_TEMP"
+          cmake -S "$RUNNER_TEMP/device-battery-$VERSION" -B "$RUNNER_TEMP/build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+          cmake --build "$RUNNER_TEMP/build"
+          ctest --test-dir "$RUNNER_TEMP/build" --output-on-failure
+
+      - name: Source RPM
+        run: |
+          mkdir -p ~/rpmbuild/SOURCES
+          cp "dist/device-battery-$VERSION.tar.gz" ~/rpmbuild/SOURCES/
+          rpmbuild -bs --define "dist %{nil}" packaging/fedora/device-battery.spec
+          cp ~/rpmbuild/SRPMS/*.src.rpm dist/
+          (cd dist && sha256sum * > SHA256SUMS)
+          ls -l dist
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git tag -l --format='%(contents)' "$TAG" > notes.md
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* --title "Device Battery $VERSION" --notes-file notes.md --verify-tag
+          fi

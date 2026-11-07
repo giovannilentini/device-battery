@@ -1,0 +1,31 @@
+# Maintainer: giovannilentini <giovannilentini29 at gmail dot com>
+pkgname=plasma6-applets-device-battery
+_pkgname=device-battery
+pkgver=1.1.0
+pkgrel=1
+pkgdesc="Plasma 6 widget showing the battery of AirPods, headphones, keyboards, mice and other wireless devices"
+arch=('x86_64' 'aarch64')
+url="https://github.com/giovannilentini/device-battery"
+license=('MIT')
+depends=('qt6-base' 'qt6-declarative' 'libplasma' 'kirigami' 'kcmutils' 'upower' 'bluez')
+makedepends=('cmake' 'extra-cmake-modules' 'bluez-libs')
+checkdepends=('dbus')
+source=("$_pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('75478d4d99b9d41e551b5d758b5e7c5e7e5b0d3f2257ee20c13e86b62a866b28')
+
+build() {
+  cmake -B build -S "$_pkgname-$pkgver" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_BUILD_TYPE=None \
+    -DBUILD_TESTING=ON
+  cmake --build build
+}
+
+check() {
+  ctest --test-dir build --output-on-failure
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+  install -Dm644 "$_pkgname-$pkgver/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
