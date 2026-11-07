@@ -9,11 +9,16 @@ Apple's *Batteries* widget:
 - **Keyboards, mice, touchpads and game controllers**, over Bluetooth or a USB
   receiver (e.g. Logitech Unifying/Lightspeed)
 
-It runs in the panel or the system tray. It shows the device that's closest to
-running out inside a ring, and the popup lists every device. Devices you disconnected
-stay listed, dimmed, with their last levels and when they were last seen ("Disconnected
-2 h ago"), so you can check the AirPods in their case before you leave. In the system tray it
-hides when nothing is connected and comes forward when a battery gets low.
+It runs in the panel, the system tray or on the desktop:
+
+- **Panel and system tray:** the device closest to running out is shown inside a ring, and
+  the popup lists every device. In the system tray the widget hides when nothing is
+  connected and comes forward when a battery gets low.
+- **Desktop:** a grid of large rings, one per device.
+
+Devices you disconnected stay listed, dimmed, with their last levels and when they were
+last seen ("Disconnected 2 h ago"), so you can check the AirPods in their case before you
+leave. AirPods and Beats also get a notification when their battery runs low.
 
 ## Why AirPods need special handling
 

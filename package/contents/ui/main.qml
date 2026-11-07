@@ -153,7 +153,23 @@ PlasmoidItem {
         device: root.lowestDevice
     }
 
-    fullRepresentation: FullRepresentation {
-        model: root.deviceFilter
+    // On the desktop the grid of rings is shown directly; in a panel, the icon and a popup.
+    readonly property bool onDesktop: Plasmoid.formFactor === PlasmaCore.Types.Planar
+    preferredRepresentation: onDesktop ? fullRepresentation : null
+
+    fullRepresentation: onDesktop ? desktopView : popupView
+
+    Component {
+        id: popupView
+        FullRepresentation {
+            model: root.deviceFilter
+        }
+    }
+
+    Component {
+        id: desktopView
+        DesktopRepresentation {
+            model: root.deviceFilter
+        }
     }
 }
