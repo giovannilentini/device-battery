@@ -11,7 +11,9 @@ PlasmaExtras.Representation {
 
     // Height of the rows plus a margin above and below: the popup hugs its content.
     readonly property real listHeight: deviceList.contentHeight + Kirigami.Units.largeSpacing * 2
-    readonly property real placeholderHeight: Kirigami.Units.gridUnit * 8
+    // The empty-state message decides its own height: a fixed one cut off its text, more so
+    // with large fonts or long translations.
+    readonly property real placeholderHeight: placeholder.implicitHeight + Kirigami.Units.gridUnit * 2
     // Past this, the list scrolls instead of the popup growing further.
     readonly property real maximumListHeight: Kirigami.Units.gridUnit * 24
     readonly property bool empty: deviceList.count === 0
@@ -44,6 +46,7 @@ PlasmaExtras.Representation {
             }
 
             PlasmaExtras.PlaceholderMessage {
+                id: placeholder
                 anchors.centerIn: parent
                 width: parent.width - Kirigami.Units.gridUnit * 4
                 visible: deviceList.count === 0
