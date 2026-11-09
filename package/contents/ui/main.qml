@@ -108,7 +108,13 @@ PlasmoidItem {
         && Levels.isLow(lowestDevice.percentage, lowestDevice.charging, lowestDevice.coarseLevel, Plasmoid.configuration.lowThreshold)
 
     // In the system tray: hidden with no devices, promoted when a battery is low.
+    // Elsewhere always active: a panel takes on the highest status of its widgets, and an
+    // auto-hide panel that needs attention stays shown, so a mouse left at a low level kept
+    // the panel from hiding for hours. The red ring is warning enough there.
     Plasmoid.status: {
+        if (!inSystemTray) {
+            return PlasmaCore.Types.ActiveStatus;
+        }
         if (connectedDevices.length === 0) {
             return PlasmaCore.Types.PassiveStatus;
         }
