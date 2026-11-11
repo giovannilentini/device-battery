@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `.deb` packages for Debian 13 and Ubuntu 26.04 are attached to every release
+
 ## 1.2.0 (2026-11-11)
 
 - Two devices of the same model (e.g. two mice, each on its own receiver) are told apart by
