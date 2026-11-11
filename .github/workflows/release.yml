@@ -79,7 +79,7 @@ jobs:
       # The packaging files come from the commit the workflow runs on (for a tag push, the tag
       # itself; when run by hand, the branch), the sources from the tag. So a tag made before a
       # packaging fix can still be released, without moving the tag.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # the tag and its message, which becomes the release notes
 

@@ -61,7 +61,7 @@ jobs:
             git cmake ninja-build g++ extra-cmake-modules \
             qt6-base-dev qt6-declarative-dev libbluetooth-dev dbus-daemon
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Configure
         run: >
@@ -134,7 +134,7 @@ jobs:
           python3 -m venv /opt/clang-format
           /opt/clang-format/bin/pip install clang-format==23.1.3
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Check formatting
         run: |
@@ -148,7 +148,7 @@ jobs:
     name: Translation template
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Install gettext
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gettext
@@ -169,7 +169,7 @@ jobs:
           qt6-qtbase-devel qt6-qtdeclarative-devel bluez-libs-devel
           libplasma kf6-kirigami kf6-kcmutils
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # Builds the plugin so qmllint also knows DeviceModel. qmllint exits 0 on warnings by
       # default, hence --max-warnings 0. Plasma injects i18nc() at runtime, which qmllint
