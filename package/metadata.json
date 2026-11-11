@@ -13,7 +13,7 @@
         "Id": "io.github.giovannilentini.devicebattery",
         "License": "MIT",
         "Name": "Device Battery",
-        "Version": "1.1.1",
+        "Version": "1.2.0",
         "Website": "https://github.com/giovannilentini/device-battery"
     },
     "KPackageStructure": "Plasma/Applet",

@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.1 (2026-11-11)
+## 1.2.0 (2026-11-11)
 
 - Two devices of the same model (e.g. two mice, each on its own receiver) are told apart by
   their serial number: one disconnecting is noticed while the other stays, and each can be
