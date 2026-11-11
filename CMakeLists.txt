@@ -51,6 +51,31 @@ add_subdirectory(src)
 # The plasmoid itself is plain QML + metadata, installed as a KPackage.
 install(DIRECTORY package/ DESTINATION ${KDE_INSTALL_DATADIR}/plasma/plasmoids/${PLASMOID_ID})
 
+# Translations: every po/<language>.po is compiled and installed where Plasma looks for the
+# widget's texts. Without gettext they are left out, and the widget is in English.
+file(GLOB PO_FILES CONFIGURE_DEPENDS po/*.po)
+if(PO_FILES)
+    find_package(Gettext)
+    set_package_properties(Gettext PROPERTIES TYPE RECOMMENDED PURPOSE "Needed to install the translations of the widget.")
+endif()
+if(PO_FILES AND GETTEXT_FOUND)
+    set(MO_FILES)
+    foreach(po ${PO_FILES})
+        get_filename_component(language ${po} NAME_WLE)
+        set(mo ${CMAKE_CURRENT_BINARY_DIR}/po/${language}.mo)
+        add_custom_command(
+            OUTPUT ${mo}
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/po
+            COMMAND ${GETTEXT_MSGFMT_EXECUTABLE} --check -o ${mo} ${po}
+            DEPENDS ${po}
+            VERBATIM
+        )
+        install(FILES ${mo} DESTINATION ${KDE_INSTALL_LOCALEDIR}/${language}/LC_MESSAGES RENAME plasma_applet_${PLASMOID_ID}.mo)
+        list(APPEND MO_FILES ${mo})
+    endforeach()
+    add_custom_target(translations ALL DEPENDS ${MO_FILES})
+endif()
+
 if(BUILD_TESTING)
     find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Test)
     add_subdirectory(tests)
