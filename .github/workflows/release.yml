@@ -35,6 +35,16 @@ jobs:
       TAG: ${{ inputs.tag || github.ref_name }}
       DEBIAN_FRONTEND: noninteractive
     steps:
+      # GitHub's runners sometimes cannot resolve Ubuntu's own mirrors for an hour or more;
+      # the packages are signed, so any other mirror is as good.
+      - name: Use another mirror if Ubuntu's is unreachable
+        if: startsWith(matrix.image, 'ubuntu')
+        run: |
+          if ! getent hosts archive.ubuntu.com > /dev/null; then
+            sed -i -E 's#http://(archive|security)\.ubuntu\.com/ubuntu/?#http://mirrors.kernel.org/ubuntu/#' /etc/apt/sources.list.d/ubuntu.sources
+            cat /etc/apt/sources.list.d/ubuntu.sources
+          fi
+
       - name: Install dependencies
         run: |
           apt-get update

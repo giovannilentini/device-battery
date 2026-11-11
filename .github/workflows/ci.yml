@@ -97,6 +97,16 @@ jobs:
     env:
       DEBIAN_FRONTEND: noninteractive
     steps:
+      # GitHub's runners sometimes cannot resolve Ubuntu's own mirrors for an hour or more;
+      # the packages are signed, so any other mirror is as good.
+      - name: Use another mirror if Ubuntu's is unreachable
+        if: startsWith(matrix.image, 'ubuntu')
+        run: |
+          if ! getent hosts archive.ubuntu.com > /dev/null; then
+            sed -i -E 's#http://(archive|security)\.ubuntu\.com/ubuntu/?#http://mirrors.kernel.org/ubuntu/#' /etc/apt/sources.list.d/ubuntu.sources
+            cat /etc/apt/sources.list.d/ubuntu.sources
+          fi
+
       - name: Install dependencies
         run: |
           apt-get update
@@ -147,11 +157,12 @@ jobs:
   translations:
     name: Translation template
     runs-on: ubuntu-latest
+    container: fedora:latest
     steps:
-      - uses: actions/checkout@v7
-
       - name: Install gettext
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gettext
+        run: dnf install -y --setopt=install_weak_deps=False git gettext findutils grep
+
+      - uses: actions/checkout@v7
 
       - name: Check that the template is up to date
         run: scripts/extract-messages.sh --check || { echo "::error::Run scripts/extract-messages.sh and commit the result."; exit 1; }
