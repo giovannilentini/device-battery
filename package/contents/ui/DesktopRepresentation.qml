@@ -118,6 +118,13 @@ Item {
                 Layout.alignment: Qt.AlignTop
                 spacing: Kirigami.Units.smallSpacing
 
+                // For screen readers: the tile as one item, "Mouse", "54%".
+                Accessible.role: Accessible.ListItem
+                Accessible.name: tile.name || i18nc("@label", "Unknown device")
+                Accessible.description: tile.charging
+                    ? i18nc("@info:tooltip battery level", "%1, charging", tileLevel.accessibleText)
+                    : tileLevel.accessibleText
+
                 BatteryRing {
                     Layout.alignment: Qt.AlignHCenter
                     Layout.preferredWidth: desktop.fit.ring
@@ -134,6 +141,7 @@ Item {
                 }
 
                 PercentLabel {
+                    id: tileLevel
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
                     elide: Text.ElideRight

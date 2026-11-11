@@ -23,4 +23,8 @@ PlasmaComponents3.Label {
         return percentage >= 0 ? i18nc("battery level in percent", "%1%", percentage) : "–";
     }
     textFormat: Text.PlainText
+
+    // What a screen reader should say: the dash of an unknown level means nothing when spoken.
+    readonly property string accessibleText: percentage >= 0 || coarseLevel ? text : i18nc("@info:tooltip battery level", "unknown")
+    Accessible.name: accessibleText
 }

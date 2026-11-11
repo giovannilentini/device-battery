@@ -44,6 +44,42 @@ Item {
 
     implicitHeight: layout.implicitHeight
 
+    // For screen readers: the row as one item, "AirPods", "97%, Noise cancellation, Left 97%,
+    // Right 100%, Case 40%, charging".
+    Accessible.role: Accessible.ListItem
+    Accessible.name: name || i18nc("@label", "Unknown device")
+    Accessible.description: {
+        const lines = [levelLabel.accessibleText];
+        if (status.length > 0) {
+            lines.push(status);
+        }
+        for (const part of parts) {
+            lines.push(partText(part));
+        }
+        return lines.join(", ");
+    }
+
+    function partText(part) {
+        let name = "";
+        switch (part.component) {
+        case "left":
+            name = i18nc("@info:tooltip left earbud", "Left");
+            break;
+        case "right":
+            name = i18nc("@info:tooltip right earbud", "Right");
+            break;
+        case "case":
+            name = i18nc("@info:tooltip charging case", "Case");
+            break;
+        }
+        const level = part.percentage >= 0
+            ? i18nc("battery level in percent", "%1%", part.percentage)
+            : i18nc("@info:tooltip battery level", "unknown");
+        return part.charging && connected
+            ? i18nc("@info:tooltip earbud or case: battery level", "%1 %2, charging", name, level)
+            : i18nc("@info:tooltip earbud or case: battery level", "%1 %2", name, level);
+    }
+
     // Too narrow for the status line and the earbud rings (e.g. a small desktop widget): show
     // just the name and level.
     readonly property bool narrow: width < Kirigami.Units.gridUnit * 14
@@ -129,6 +165,7 @@ Item {
                 }
 
                 PercentLabel {
+                    id: levelLabel
                     percentage: root.percentage
                     coarseLevel: root.coarseLevel
                     font.bold: root.connected
