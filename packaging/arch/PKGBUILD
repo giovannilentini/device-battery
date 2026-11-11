@@ -1,7 +1,7 @@
 # Maintainer: giovannilentini <giovannilentini29 at gmail dot com>
 pkgname=plasma6-applets-device-battery
 _pkgname=device-battery
-pkgver=1.1.0
+pkgver=1.2.0
 pkgrel=1
 pkgdesc="Plasma 6 widget showing the battery of AirPods, headphones, keyboards, mice and other wireless devices"
 arch=('x86_64' 'aarch64')

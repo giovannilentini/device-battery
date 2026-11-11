@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.2.0 (2026-11-11)
 
 - Two devices of the same model (e.g. two mice, each on its own receiver) are told apart by
   their serial number: one disconnecting is noticed while the other stays, and each can be
@@ -10,6 +10,7 @@
 - Screen readers read the devices in the popup and on the desktop
 - The widget can be translated (see *Translating* in the README)
 - *About* links to the project page and its issues
+- Fix: the widget did not build with Qt older than 6.9 (e.g. on Debian 13)
 
 ## 1.1.0 (2026-11-07)
 
