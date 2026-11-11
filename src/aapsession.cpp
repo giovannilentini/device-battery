@@ -20,26 +20,6 @@
 
 namespace
 {
-// Retry delays grow by RetryStep (3 s, 6 s, 9 s, ...) up to MaxRetryDelay, and retries never
-// stop: a session only exists while BlueZ says the device is connected, so it is worth
-// waiting for, and an idle retry costs one connect attempt every couple of minutes.
-// After FailuresUntilLost failures in a row the last levels are withdrawn as stale.
-constexpr auto RetryStep = std::chrono::seconds(3);
-constexpr auto MaxRetryDelay = std::chrono::minutes(2);
-constexpr int FailuresUntilLost = 5;
-
-// Right after the Bluetooth link comes up, AirPods accept the L2CAP channel but ignore the
-// handshake, so wait for them to settle before the first attempt.
-constexpr auto SettleDelay = std::chrono::seconds(2);
-
-// The watchdog reconnects a session that is not delivering data:
-// - an attempt with no battery report after ResponseTimeout failed (the connect hung, or the
-//   accessory accepted the channel but ignores us, e.g. while another app holds the session);
-// - a working session with no packet at all for IdleTimeout went stale. AirPods in use send
-//   something every minute or two, so this only triggers when the session really died.
-constexpr auto ResponseTimeout = std::chrono::seconds(8);
-constexpr auto IdleTimeout = std::chrono::minutes(5);
-
 // "38:C4:3A:7B:06:85" -> bdaddr_t, which BlueZ stores in reverse byte order.
 std::optional<bdaddr_t> toBdaddr(const QString &address)
 {
@@ -58,6 +38,34 @@ std::optional<bdaddr_t> toBdaddr(const QString &address)
     return result;
 }
 
+// The default Options::connector: a non-blocking L2CAP socket connecting to the AAP channel.
+int connectL2cap(const QString &address)
+{
+    const auto bdaddr = toBdaddr(address);
+    if (!bdaddr) {
+        errno = EINVAL;
+        return -1;
+    }
+    // Fails e.g. while the adapter is being reset, or when we ran out of descriptors.
+    const int socket = ::socket(AF_BLUETOOTH, SOCK_SEQPACKET | SOCK_NONBLOCK | SOCK_CLOEXEC, BTPROTO_L2CAP);
+    if (socket < 0) {
+        return -1;
+    }
+
+    sockaddr_l2 target{};
+    target.l2_family = AF_BLUETOOTH;
+    target.l2_psm = htobs(Aap::Psm);
+    target.l2_bdaddr = *bdaddr;
+
+    if (::connect(socket, reinterpret_cast<sockaddr *>(&target), sizeof(target)) < 0 && errno != EINPROGRESS) {
+        const int error = errno;
+        ::close(socket);
+        errno = error;
+        return -1;
+    }
+    return socket;
+}
+
 // Closes and frees a notifier safely, even from inside its own activated() signal.
 void discard(QSocketNotifier *&notifier)
 {
@@ -70,9 +78,19 @@ void discard(QSocketNotifier *&notifier)
 }
 
 AapSession::AapSession(const QString &address, QObject *parent)
+    : AapSession(address, Options{}, parent)
+{
+}
+
+AapSession::AapSession(const QString &address, const Options &options, QObject *parent)
     : QObject(parent)
     , m_address(address)
+    , m_options(options)
 {
+    if (!m_options.connector) {
+        m_options.connector = connectL2cap;
+    }
+
     m_retryTimer.setSingleShot(true);
     connect(&m_retryTimer, &QTimer::timeout, this, &AapSession::connectToAccessory);
 
@@ -83,7 +101,7 @@ AapSession::AapSession(const QString &address, QObject *parent)
         retryLater();
     });
 
-    m_retryTimer.start(SettleDelay);
+    m_retryTimer.start(m_options.settleDelay);
 }
 
 AapSession::~AapSession()
@@ -93,33 +111,16 @@ AapSession::~AapSession()
 
 void AapSession::connectToAccessory()
 {
-    const auto bdaddr = toBdaddr(m_address);
-    if (!bdaddr) {
-        qCWarning(DEVICEBATTERY) << "Invalid Bluetooth address" << m_address;
-        return;
-    }
-
-    m_socket = ::socket(AF_BLUETOOTH, SOCK_SEQPACKET | SOCK_NONBLOCK | SOCK_CLOEXEC, BTPROTO_L2CAP);
+    m_socket = m_options.connector(m_address);
     if (m_socket < 0) {
-        qCWarning(DEVICEBATTERY) << "Cannot create L2CAP socket:" << std::strerror(errno);
-        retryLater(); // e.g. the adapter is being reset, or we ran out of descriptors
+        qCDebug(DEVICEBATTERY) << "AAP connect to" << m_address << "failed:" << std::strerror(errno);
+        m_socket = -1;
+        retryLater();
         return;
     }
 
     m_reported = false;
-    m_watchdog.start(ResponseTimeout);
-
-    sockaddr_l2 target{};
-    target.l2_family = AF_BLUETOOTH;
-    target.l2_psm = htobs(Aap::Psm);
-    target.l2_bdaddr = *bdaddr;
-
-    if (::connect(m_socket, reinterpret_cast<sockaddr *>(&target), sizeof(target)) < 0 && errno != EINPROGRESS) {
-        qCDebug(DEVICEBATTERY) << "AAP connect to" << m_address << "failed:" << std::strerror(errno);
-        closeSocket();
-        retryLater();
-        return;
-    }
+    m_watchdog.start(m_options.responseTimeout);
 
     // A non-blocking connect completes when the socket becomes writable.
     m_writeNotifier = new QSocketNotifier(m_socket, QSocketNotifier::Write, this);
@@ -175,7 +176,7 @@ void AapSession::onReadable()
                 Q_EMIT noiseControlChanged(*mode);
             }
             if (m_reported) {
-                m_watchdog.start(IdleTimeout); // any traffic proves the session is alive
+                m_watchdog.start(m_options.idleTimeout); // any traffic proves the session is alive
             }
             continue;
         }
@@ -213,11 +214,11 @@ void AapSession::closeSocket()
 void AapSession::retryLater()
 {
     ++m_failedAttempts;
-    if (m_failedAttempts == FailuresUntilLost) {
+    if (m_failedAttempts == m_options.failuresUntilLost) {
         qCDebug(DEVICEBATTERY) << "AAP for" << m_address << "failed" << m_failedAttempts << "times in a row, dropping its levels";
         Q_EMIT batteryLost();
     }
-    const auto delay = std::min<std::chrono::milliseconds>(RetryStep * m_failedAttempts, MaxRetryDelay);
-    qCDebug(DEVICEBATTERY) << "Retrying AAP for" << m_address << "in" << delay.count() / 1000 << "s";
+    const auto delay = std::min(m_options.retryStep * m_failedAttempts, m_options.maxRetryDelay);
+    qCDebug(DEVICEBATTERY) << "Retrying AAP for" << m_address << "in" << delay.count() << "ms";
     m_retryTimer.start(delay);
 }

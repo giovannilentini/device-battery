@@ -15,7 +15,8 @@ class DeviceListModel;
 // per-device settings applied. Hidden devices are left out, renamed ones get their custom
 // name, and disconnected ones can be left out entirely.
 //
-// Settings refer to devices by their deviceKey(), which stays the same across reconnections.
+// Settings refer to devices by their deviceKey(), which stays the same across reconnections,
+// or by their legacyDeviceKey().
 class DeviceFilter : public QSortFilterProxyModel
 {
     Q_OBJECT

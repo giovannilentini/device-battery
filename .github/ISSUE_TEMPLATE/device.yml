@@ -1,0 +1,48 @@
+name: A device is missing or wrong
+description: A keyboard, mouse, headset or other device is not listed, or has the wrong level, name or icon.
+labels: [device]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Everything except AirPods and Beats comes from UPower. If `upower -d` does not list the
+        device, Linux gets no battery level from it and the widget cannot show one; see
+        *Troubleshooting* in the README.
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      description: Make and model, and how it is connected (Bluetooth, or which USB receiver).
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong
+      description: What the widget shows, and what it should show.
+    validations:
+      required: true
+  - type: textarea
+    id: upower
+    attributes:
+      label: Output of `upower -d`
+      description: With the device connected. Only the block of the device is needed, if it has one.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Debug log
+      description: |
+        Optional. Run `QT_LOGGING_RULES="devicebattery.debug=true" plasmashell --replace` and
+        paste the lines that start with `devicebattery:`.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: Versions
+      description: Of the widget, Plasma and your distribution.
+      placeholder: Device Battery 1.1.0, Plasma 6.5, Fedora 43
+    validations:
+      required: true

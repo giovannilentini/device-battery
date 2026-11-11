@@ -83,6 +83,7 @@ struct BatteryPart {
 struct Device {
     QString id; // unique across all sources, e.g. "upower:/org/freedesktop/..."
     QString address; // Bluetooth MAC address (upper case) if known; used to merge duplicates
+    QString serial; // serial number if the source reports one; tells apart two devices of one model
     QString name;
     DeviceKind kind = DeviceKind::Other;
     int percentage = -1; // overall level, 0-100, or -1 when unknown
@@ -143,12 +144,22 @@ int lowestDeviceIndex(const QList<Device> &devices);
 QString bluetoothAddressIn(const QString &text);
 
 // A key that identifies a device across reconnections and restarts, for per-device settings:
-// "bt:<address>" for Bluetooth devices, else "name:<name>". UPower ids are not stable, e.g.
-// Logitech receivers recreate their object under a new path when the mouse wakes up.
+// "bt:<address>" for Bluetooth devices, else "dev:<name>#<serial>" for devices with a serial
+// number, else "name:<name>". UPower ids are not stable, e.g. Logitech receivers recreate
+// their object under a new path when the mouse wakes up. The serial number comes with the
+// name because some devices share a placeholder one ("0000").
 QString deviceKey(const Device &device);
 
+// The "name:<name>" key of a device whose deviceKey() carries a serial number, else empty.
+// Settings made before serial numbers were used are stored under it, and it still applies
+// while UPower has not read the serial number yet, so a setting under either key counts.
+QString legacyDeviceKey(const Device &device);
+
 // Whether `a` and `b` are the same physical device, possibly under another id: same id, same
-// Bluetooth address, or same name and kind.
+// Bluetooth address, or same name and kind. Two devices with the same name and kind but
+// different serial numbers are different devices (e.g. two mice of one model, each on its own
+// receiver); a missing serial number matches any, as UPower may fill it in after announcing a
+// device.
 bool isSameDevice(const Device &a, const Device &b);
 
 // Most recently disconnected devices that are kept, with their last levels.
@@ -176,6 +187,21 @@ QList<Device> vanishedDevices(const QList<Device> &shown, const QList<Device> &n
 // holds the ids already warned about and is updated: a device is warned about again only
 // after it charged or rose above the threshold, or disconnected.
 QList<Device> devicesToWarn(const QList<Device> &devices, QSet<QString> &warned, int threshold);
+
+// The low battery notification settings of one widget instance.
+struct NotificationSetting {
+    bool enabled = false;
+    int threshold = 20; // the "Low battery at" level, in percent
+
+    bool operator==(const NotificationSetting &) const = default;
+};
+
+// The settings the shared backend notifies with, from those of every widget instance: enabled
+// if any instance is, at the highest threshold among the enabled ones, so nobody is warned
+// later than they asked. While none is enabled, the highest threshold of all still tracks
+// which batteries are low (see devicesToWarn()), so turning notifications on does not warn
+// about a battery that already was.
+NotificationSetting notificationSettings(const QList<NotificationSetting> &instances);
 
 // A connected device that reports no battery level to Linux, e.g. a wireless receiver whose
 // keyboard reports its level only through the vendor's own app. Listed so that a device the

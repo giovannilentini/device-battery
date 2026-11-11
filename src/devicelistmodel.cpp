@@ -157,6 +157,7 @@ QVariantList devicesToVariant(const QList<Device> &devices)
             {QStringLiteral("connected"), device.connected},
             {QStringLiteral("lastSeen"), lastSeenOf(device)},
             {QStringLiteral("key"), deviceKey(device)},
+            {QStringLiteral("legacyKey"), legacyDeviceKey(device)},
         });
     }
     return list;

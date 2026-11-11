@@ -14,12 +14,16 @@ PlasmoidItem {
         DeviceModel.acquire();
         configureNotifications();
     }
-    Component.onDestruction: DeviceModel.release()
+    Component.onDestruction: {
+        DeviceModel.removeNotifications(Plasmoid.id);
+        DeviceModel.release();
+    }
 
     // Low battery notifications are sent by the shared backend (once, however many instances
-    // there are), with texts translated here.
+    // there are, combining their settings), with texts translated here.
     function configureNotifications() {
-        DeviceModel.configureNotifications(Plasmoid.configuration.notifyLow, Plasmoid.configuration.lowThreshold,
+        DeviceModel.configureNotifications(Plasmoid.id, Plasmoid.configuration.notifyLow, Plasmoid.configuration.lowThreshold,
+            Plasmoid.title,
             i18nc("@title:notification %1 is a device name", "%1: battery low"),
             i18nc("@info:notification %1 is a battery level", "%1% left"));
     }

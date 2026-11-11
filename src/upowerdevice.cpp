@@ -178,6 +178,7 @@ Device UPower::toDevice(const QString &path, const QVariantMap &properties)
     return {
         .id = deviceId(path),
         .address = bluetoothAddressIn(properties.value(QStringLiteral("NativePath")).toString()),
+        .serial = properties.value(QStringLiteral("Serial")).toString().trimmed(),
         .name = model.isEmpty() ? properties.value(QStringLiteral("Vendor")).toString() : model,
         .kind = kindOf(model, properties.value(QStringLiteral("Type")).toUInt()),
         .percentage = percentageOf(properties),

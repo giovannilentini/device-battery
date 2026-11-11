@@ -106,6 +106,52 @@ private Q_SLOTS:
         QCOMPARE(changed.size(), 1);
         // The key stays that of the device, so the settings keep finding it.
         QCOMPARE(filter.index(0, 0).data(DeviceListModel::KeyRole).toString(), QStringLiteral("bt:") + AirPodsAddress);
+        // Also for a device whose key is its name.
+        filter.setCustomNames({{QStringLiteral("name:Mouse"), QStringLiteral("Desk mouse")}});
+        QCOMPARE(filter.summary().at(1).toMap().value(QStringLiteral("name")).toString(), QStringLiteral("Desk mouse"));
+        QCOMPARE(filter.summary().at(1).toMap().value(QStringLiteral("key")).toString(), QStringLiteral("name:Mouse"));
+    }
+
+    // Two mice of one model, each on its own receiver: settings apply to one of them.
+    void sameModelsHaveTheirOwnSettings()
+    {
+        Device first = device(QStringLiteral("a"), QStringLiteral("MX Master 3"), 80);
+        first.serial = QStringLiteral("4082-11");
+        Device second = device(QStringLiteral("b"), QStringLiteral("MX Master 3"), 40);
+        second.serial = QStringLiteral("4082-22");
+        m_source.setDevices({first, second});
+
+        DeviceFilter filter;
+        QAbstractItemModelTester tester(&filter, QAbstractItemModelTester::FailureReportingMode::QtTest);
+        filter.setSourceModel(&m_source);
+
+        filter.setCustomNames({{deviceKey(first), QStringLiteral("Desk mouse")}});
+        QCOMPARE(namesIn(filter), (QStringList{QStringLiteral("Desk mouse"), QStringLiteral("MX Master 3")}));
+
+        filter.setHiddenKeys({deviceKey(second)});
+        QCOMPARE(namesIn(filter), QStringList{QStringLiteral("Desk mouse")});
+    }
+
+    // Settings made before serial numbers were used are stored under the name alone: they keep
+    // applying, to every device of that name, until one under the device's own key replaces them.
+    void settingsUnderTheNameStillApply()
+    {
+        Device first = device(QStringLiteral("a"), QStringLiteral("MX Master 3"), 80);
+        first.serial = QStringLiteral("4082-11");
+        Device second = device(QStringLiteral("b"), QStringLiteral("MX Master 3"), 40);
+        second.serial = QStringLiteral("4082-22");
+        m_source.setDevices({first, second});
+
+        DeviceFilter filter;
+        QAbstractItemModelTester tester(&filter, QAbstractItemModelTester::FailureReportingMode::QtTest);
+        filter.setSourceModel(&m_source);
+
+        filter.setCustomNames({{QStringLiteral("name:MX Master 3"), QStringLiteral("Mouse")}, {deviceKey(second), QStringLiteral("Laptop mouse")}});
+        QCOMPARE(namesIn(filter), (QStringList{QStringLiteral("Mouse"), QStringLiteral("Laptop mouse")}));
+        QCOMPARE(filter.summary().first().toMap().value(QStringLiteral("legacyKey")).toString(), QStringLiteral("name:MX Master 3"));
+
+        filter.setHiddenKeys({QStringLiteral("name:MX Master 3")});
+        QCOMPARE(filter.count(), 0);
     }
 
     void followsTheSource()

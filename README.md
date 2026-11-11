@@ -54,8 +54,8 @@ uses.
 |---|---|
 | `src/device.{h,cpp}` | `Device` / `BatteryPart` value types and helpers |
 | `src/aapprotocol.{h,cpp}` | Builds and parses AAP packets (pure functions, unit tested) |
-| `src/aapsession.{h,cpp}` | One non-blocking L2CAP connection to one accessory |
-| `src/airpodssource.{h,cpp}` | Finds connected Apple audio devices through BlueZ and runs a session for each |
+| `src/aapsession.{h,cpp}` | One non-blocking L2CAP connection to one accessory (tested against a local socket) |
+| `src/airpodssource.{h,cpp}` | Finds connected Apple audio devices through BlueZ and runs a session for each (tested against a fake BlueZ) |
 | `src/upowerdevice.{h,cpp}` | Maps UPower properties to a `Device` (pure functions, unit tested) |
 | `src/upowersource.{h,cpp}` | Peripheral batteries from UPower |
 | `src/usbreceivers.{h,cpp}` | USB wireless receivers without a battery, from sysfs (unit tested) |
@@ -206,12 +206,15 @@ systemctl --user restart plasma-plasmashell
 - **Notify when AirPods or Beats run low.** One notification when the earbud in use
   reaches the *Low battery at* level, and again only after it charged. Plasma already
   notifies about UPower devices (mice, keyboards, …), so they are left out. With several
-  widget instances, the one configured last decides.
+  widget instances you are notified once, if any of them has this on, at the highest
+  *Low battery at* level among those.
 - **List disconnected devices.** Keep devices you disconnected in the popup, under
   *Disconnected*, with their last levels. They never count as low.
 - **Devices page.** Hide a device (e.g. a controller that always sits on its charger) or
   give it another name. Settings follow the device across reconnections: Bluetooth devices
-  by their address, others by their name.
+  by their address, others by their serial number or, without one, by their name. Two
+  devices of the same model on USB receivers therefore have their own settings, provided
+  they report a serial number (`upower -d`, line `serial`).
 
 Right-click the widget for **Bluetooth Settings…** and, while disconnected devices are
 listed, **Forget Disconnected Devices**.
@@ -275,12 +278,13 @@ cmake --build build --target clang-format   # needs clang-format
 `--bare` makes qmllint read the plugin from `build/bin` first; otherwise an installed copy
 of the widget hides new types and properties.
 
-The UPower source is tested against a fake UPower on a private bus, which needs
-`dbus-run-session` (package `dbus-daemon` on Fedora, `dbus` on Arch); without it that
-test is skipped.
+The UPower and BlueZ sources are tested against fake services on a private bus, which needs
+`dbus-run-session` (package `dbus-daemon` on Fedora and Debian, `dbus` on Arch); without it
+those tests are skipped.
 
-CI builds and tests every pull request on Fedora (with ASan and UBSan) and Arch Linux,
-treats compiler warnings as errors, lints the QML and checks the formatting.
+CI builds and tests every pull request on Fedora (with ASan and UBSan), Arch Linux and
+Debian 13, treats compiler warnings as errors, lints the QML, and checks the formatting and
+the translation template.
 
 To try QML changes without installing, run the widget from the build tree:
 
@@ -288,6 +292,23 @@ To try QML changes without installing, run the widget from the build tree:
 mkdir -p /tmp/db/plasma/plasmoids && ln -sfn "$PWD/package" /tmp/db/plasma/plasmoids/io.github.giovannilentini.devicebattery
 XDG_DATA_DIRS=/tmp/db:/usr/share QML_IMPORT_PATH="$PWD/build/bin" plasmawindowed io.github.giovannilentini.devicebattery
 ```
+
+## Translating
+
+The texts of the widget are in `po/plasma_applet_io.github.giovannilentini.devicebattery.pot`.
+To add a language, copy it to `po/<language>.po` (e.g. `po/it.po`, `po/pt_BR.po`), or let
+gettext fill in the header:
+
+```sh
+msginit -l it -i po/plasma_applet_io.github.giovannilentini.devicebattery.pot -o po/it.po
+```
+
+Translate it with [Lokalize](https://apps.kde.org/lokalize/), [Poedit](https://poedit.net)
+or a text editor, and open a pull request. The build compiles and installs every
+`po/*.po` (it needs gettext for that).
+
+After changing a text in the QML, run `scripts/extract-messages.sh`: it updates the template
+and every translation.
 
 ## License
 

@@ -40,10 +40,6 @@ public:
     Q_INVOKABLE void acquire();
     Q_INVOKABLE void release();
 
-    // Low battery notifications for AirPods and Beats. UPower devices are left out: Plasma's
-    // power management already notifies about them. The texts come from QML, which has the
-    // widget's translations: in `title` %1 is the device name, in `body` %1 the level.
-    // Every widget instance calls this; as the backend is shared, the last call wins.
     QVariantList silentDevicesVariant() const;
     // Looks for USB wireless receivers without a battery again. Cheap, but it reads sysfs, so
     // the popup calls it when it opens rather than on a timer.
@@ -52,7 +48,16 @@ public:
     // Drops the recently disconnected devices, also from the cache file.
     Q_INVOKABLE void forgetDisconnected();
 
-    Q_INVOKABLE void configureNotifications(bool enabled, int threshold, const QString &title, const QString &body);
+    // Low battery notifications for AirPods and Beats. UPower devices are left out: Plasma's
+    // power management already notifies about them. The texts come from QML, which has the
+    // widget's translations: `appName` is the widget's name, in `title` %1 is the device name,
+    // in `body` %1 the level.
+    // Every widget instance calls this with its own id and settings. The backend is shared and
+    // notifies once per device: if any instance has notifications on, at the highest threshold
+    // among those that do (see notificationSettings()).
+    Q_INVOKABLE void configureNotifications(int instance, bool enabled, int threshold, const QString &appName, const QString &title, const QString &body);
+    // Forgets the settings of a widget instance that is being removed.
+    Q_INVOKABLE void removeNotifications(int instance);
 
 Q_SIGNALS:
     void silentDevicesChanged();
@@ -73,8 +78,8 @@ private:
     QList<Device> m_recent; // recently disconnected devices, the most recent first
 
     void notifyLowBatteries();
-    bool m_notify = false;
-    int m_notifyThreshold = 20;
+    QHash<int, NotificationSetting> m_notifySettings; // widget instance id -> its settings
+    QString m_notifyAppName;
     QString m_notifyTitle;
     QString m_notifyBody;
     QSet<QString> m_warned; // see devicesToWarn()
