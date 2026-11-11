@@ -11,7 +11,7 @@ depends=('qt6-base' 'qt6-declarative' 'libplasma' 'kirigami' 'kcmutils' 'upower'
 makedepends=('cmake' 'extra-cmake-modules' 'bluez-libs')
 checkdepends=('dbus')
 source=("$_pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('75478d4d99b9d41e551b5d758b5e7c5e7e5b0d3f2257ee20c13e86b62a866b28')
+sha256sums=('2082363475261f7d01e69062b8723222e18a30141dbbe997c70ce6b2a1ac3927')
 
 build() {
   cmake -B build -S "$_pkgname-$pkgver" \
