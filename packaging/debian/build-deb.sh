@@ -69,8 +69,8 @@ for module in $qml_modules; do
     path="$qml_dir/$(echo "$module" | tr . /)/qmldir"
     packages=$(owners "$path")
     case "$packages:$module" in
-        # Before Plasma 6.4 these two are not files: plasmashell itself registers them.
-        :org.kde.plasma.configuration | :org.kde.plasma.plasmoid) packages=$(owners usr/bin/plasmashell) ;;
+        # In some Plasma versions these two are not files: plasmashell itself registers them.
+        :org.kde.plasma.configuration | :org.kde.plasma.plasmoid) packages=plasma-workspace ;;
     esac
     [ -n "$packages" ] || { echo "no package ships the QML module $module ($path)" >&2; exit 1; }
     echo "$module: $packages"
