@@ -180,6 +180,23 @@ private Q_SLOTS:
         QVERIFY(!isSameDevice(first, keyboard));
     }
 
+    void settingsKeys()
+    {
+        Device device = makeDevice(QStringLiteral("upower:/a"), QStringLiteral("MX Master 3"));
+        QCOMPARE(deviceKey(device), QStringLiteral("name:MX Master 3"));
+        QVERIFY(legacyDeviceKey(device).isEmpty());
+
+        // The serial number comes with the name: some devices share a placeholder one.
+        device.serial = QStringLiteral("4082-11-22-33-44");
+        QCOMPARE(deviceKey(device), QStringLiteral("dev:MX Master 3#4082-11-22-33-44"));
+        QCOMPARE(legacyDeviceKey(device), QStringLiteral("name:MX Master 3"));
+
+        // A Bluetooth address is enough, and was the key all along.
+        device.address = QStringLiteral("38:C4:3A:7B:06:85");
+        QCOMPARE(deviceKey(device), QStringLiteral("bt:38:C4:3A:7B:06:85"));
+        QVERIFY(legacyDeviceKey(device).isEmpty());
+    }
+
     void serialNumberSurvivesTheCache()
     {
         Device mouse = makeGone(QStringLiteral("upower:/a"), QStringLiteral("MX Master 3"), 1000, 40);

@@ -144,9 +144,16 @@ int lowestDeviceIndex(const QList<Device> &devices);
 QString bluetoothAddressIn(const QString &text);
 
 // A key that identifies a device across reconnections and restarts, for per-device settings:
-// "bt:<address>" for Bluetooth devices, else "name:<name>". UPower ids are not stable, e.g.
-// Logitech receivers recreate their object under a new path when the mouse wakes up.
+// "bt:<address>" for Bluetooth devices, else "dev:<name>#<serial>" for devices with a serial
+// number, else "name:<name>". UPower ids are not stable, e.g. Logitech receivers recreate
+// their object under a new path when the mouse wakes up. The serial number comes with the
+// name because some devices share a placeholder one ("0000").
 QString deviceKey(const Device &device);
+
+// The "name:<name>" key of a device whose deviceKey() carries a serial number, else empty.
+// Settings made before serial numbers were used are stored under it, and it still applies
+// while UPower has not read the serial number yet, so a setting under either key counts.
+QString legacyDeviceKey(const Device &device);
 
 // Whether `a` and `b` are the same physical device, possibly under another id: same id, same
 // Bluetooth address, or same name and kind. Two devices with the same name and kind but

@@ -3,7 +3,8 @@
 ## Unreleased
 
 - Two devices of the same model (e.g. two mice, each on its own receiver) are told apart by
-  their serial number, so one disconnecting is noticed while the other stays
+  their serial number: one disconnecting is noticed while the other stays, and each can be
+  hidden or renamed on its own. Settings made before keep applying
 - Low battery notifications follow every widget instance: they are sent if any instance has
   them on, at the highest *Low battery at* level among those
 - Screen readers read the devices in the popup and on the desktop

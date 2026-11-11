@@ -3,6 +3,9 @@
 
 #include "devicelistmodel.h"
 
+#include <algorithm>
+#include <iterator>
+
 DeviceFilter::DeviceFilter(QObject *parent)
     : QSortFilterProxyModel(parent)
 {
@@ -39,12 +42,21 @@ bool DeviceFilter::filterAcceptsRow(int sourceRow, const QModelIndex &sourcePare
 
 bool DeviceFilter::accepts(const Device &device) const
 {
-    return (m_showDisconnected || device.connected) && !m_hiddenKeys.contains(deviceKey(device));
+    if (!m_showDisconnected && !device.connected) {
+        return false;
+    }
+    const QString legacyKey = legacyDeviceKey(device);
+    return !m_hiddenKeys.contains(deviceKey(device)) && (legacyKey.isEmpty() || !m_hiddenKeys.contains(legacyKey));
 }
 
 QString DeviceFilter::customName(const Device &device) const
 {
-    return m_customNames.value(deviceKey(device)).toString().trimmed();
+    const QString name = m_customNames.value(deviceKey(device)).toString().trimmed();
+    if (!name.isEmpty()) {
+        return name;
+    }
+    const QString legacyKey = legacyDeviceKey(device);
+    return legacyKey.isEmpty() ? QString() : m_customNames.value(legacyKey).toString().trimmed();
 }
 
 QStringList DeviceFilter::hiddenKeys() const
@@ -133,7 +145,23 @@ QList<Device> DeviceFilter::shownDevices() const
 
 QVariantList DeviceFilter::summary() const
 {
-    return devicesToVariant(shownDevices());
+    // The keys come from the devices as they are, not as they were renamed: a device keyed by
+    // its name would otherwise get the key of its custom name, which no setting refers to.
+    QList<Device> shown;
+    if (m_source) {
+        std::ranges::copy_if(m_source->devices(), std::back_inserter(shown), [this](const Device &device) {
+            return accepts(device);
+        });
+    }
+    QVariantList summary = devicesToVariant(shown);
+    for (qsizetype i = 0; i < shown.size(); ++i) {
+        if (const QString name = customName(shown.at(i)); !name.isEmpty()) {
+            QVariantMap entry = summary.at(i).toMap();
+            entry.insert(QStringLiteral("name"), name);
+            summary[i] = entry;
+        }
+    }
+    return summary;
 }
 
 int DeviceFilter::lowestIndex() const

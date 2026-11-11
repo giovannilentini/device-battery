@@ -266,7 +266,18 @@ QString bluetoothAddressIn(const QString &text)
 
 QString deviceKey(const Device &device)
 {
-    return device.address.isEmpty() ? QStringLiteral("name:") + device.name : QStringLiteral("bt:") + device.address;
+    if (!device.address.isEmpty()) {
+        return QStringLiteral("bt:") + device.address;
+    }
+    if (!device.serial.isEmpty()) {
+        return QStringLiteral("dev:") + device.name + QLatin1Char('#') + device.serial;
+    }
+    return QStringLiteral("name:") + device.name;
+}
+
+QString legacyDeviceKey(const Device &device)
+{
+    return device.address.isEmpty() && !device.serial.isEmpty() ? QStringLiteral("name:") + device.name : QString();
 }
 
 bool isSameDevice(const Device &a, const Device &b)

@@ -212,8 +212,9 @@ systemctl --user restart plasma-plasmashell
   *Disconnected*, with their last levels. They never count as low.
 - **Devices page.** Hide a device (e.g. a controller that always sits on its charger) or
   give it another name. Settings follow the device across reconnections: Bluetooth devices
-  by their address, others by their name, so two devices of the same model on USB receivers
-  share them.
+  by their address, others by their serial number or, without one, by their name. Two
+  devices of the same model on USB receivers therefore have their own settings, provided
+  they report a serial number (`upower -d`, line `serial`).
 
 Right-click the widget for **Bluetooth Settings…** and, while disconnected devices are
 listed, **Forget Disconnected Devices**.
