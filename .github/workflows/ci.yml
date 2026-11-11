@@ -20,14 +20,20 @@ jobs:
           - name: Fedora (ASan + UBSan)
             image: fedora:latest
             sanitizers: "address;undefined"
+            cxxflags: ""
           - name: Arch Linux
             image: archlinux:latest
             sanitizers: ""
+            cxxflags: ""
           # The oldest Qt the README promises to build with that a current distribution
           # ships (6.8): Fedora and Arch only compile the code paths for the newest Qt.
           - name: Debian 13
             image: debian:trixie
             sanitizers: ""
+            # Qt's QML targets add the directories of the private headers, which Debian
+            # packages separately and the widget does not use: with only the packages the
+            # README lists they are missing, which must stay a warning.
+            cxxflags: "-Wno-error=missing-include-dirs"
 
     steps:
       - name: Install dependencies (Fedora)
@@ -62,6 +68,7 @@ jobs:
           cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
           -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
           -DECM_ENABLE_SANITIZERS="${{ matrix.sanitizers }}"
+          -DCMAKE_CXX_FLAGS="${{ matrix.cxxflags }}"
 
       - name: Build
         run: cmake --build build
