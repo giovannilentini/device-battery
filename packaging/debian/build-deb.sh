@@ -62,7 +62,7 @@ depends=$(cd "$work" && mkdir debian && : > debian/control \
 
 for module in $qml_modules; do
     path="$qml_dir/$(echo "$module" | tr . /)/qmldir"
-    packages=$(apt-file search --package-only --regexp "^/?$path\$" | sort -u | paste -sd'|' | sed 's/|/ | /g')
+    packages=$(apt-file search --package-only --regexp "$path\$" | sort -u | paste -sd'|' | sed 's/|/ | /g')
     [ -n "$packages" ] || { echo "no package ships the QML module $module ($path)" >&2; exit 1; }
     echo "$module: $packages"
     case ", $depends, " in
