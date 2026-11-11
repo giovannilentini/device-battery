@@ -1,7 +1,8 @@
 name: Release
 
-# Pushing a tag such as v1.2.0 publishes a GitHub release with the source tarball and a Fedora
-# source RPM (which COPR can build). It can also be run by hand for an existing tag.
+# Pushing a tag such as v1.2.0 publishes a GitHub release with the source tarball, a Fedora
+# source RPM (which COPR can build) and .deb packages for Debian and Ubuntu. It can also be
+# run by hand for an existing tag.
 on:
   push:
     tags: ["v*"]
@@ -15,7 +16,54 @@ permissions:
   contents: write # create the release and upload its files
 
 jobs:
+  # One .deb per distribution release: the packages that ship the QML modules, and the Qt the
+  # plugin is built against, differ between them.
+  deb:
+    name: .deb (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    strategy:
+      matrix:
+        include:
+          - name: Debian 13
+            id: debian13
+            image: debian:trixie
+          - name: Ubuntu 26.04
+            id: ubuntu26.04
+            image: ubuntu:26.04
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            git ca-certificates cmake ninja-build g++ extra-cmake-modules \
+            qt6-base-dev qt6-declarative-dev libbluetooth-dev dbus-daemon gettext \
+            dpkg-dev apt-file
+          apt-file update
+
+      # As below: the build script from the commit the workflow runs on, the sources from the tag.
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Build the package
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          mkdir "$RUNNER_TEMP/source"
+          git archive "$TAG" | tar x -C "$RUNNER_TEMP/source"
+          packaging/debian/build-deb.sh "$RUNNER_TEMP/source" dist
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: deb-${{ matrix.id }}
+          path: dist/*.deb
+          if-no-files-found: error
+
   release:
+    needs: deb
     runs-on: ubuntu-latest
     container: fedora:latest
     env:
@@ -73,6 +121,16 @@ jobs:
           cp "dist/device-battery-$VERSION.tar.gz" ~/rpmbuild/SOURCES/
           rpmbuild -bs --define "dist %{nil}" packaging/fedora/device-battery.spec
           cp ~/rpmbuild/SRPMS/*.src.rpm dist/
+
+      - name: Fetch the .deb packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: deb-*
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        run: |
           (cd dist && sha256sum * > SHA256SUMS)
           ls -l dist
 

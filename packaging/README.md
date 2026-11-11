@@ -7,6 +7,7 @@ so it is distributed as distribution packages, not through *Get New Widgets…*.
 |---|---|
 | `arch/PKGBUILD`, `arch/.SRCINFO` | The AUR package `plasma6-applets-device-battery` |
 | `fedora/device-battery.spec` | The Fedora package, built on COPR as `giovannilentini/device-battery` |
+| `debian/build-deb.sh` | Builds the `.deb` for the Debian or Ubuntu release it runs on; the release workflow attaches one per supported release |
 | `kde-store.md` | Text for the KDE Store page, which points to the packages |
 | `../.github/workflows/release.yml` | Publishes a GitHub release for every `v*` tag |
 
@@ -72,6 +73,13 @@ copr-cli build device-battery \
 
 To try the spec locally: `rpmbuild -ba fedora/device-battery.spec` with the tarball in
 `~/rpmbuild/SOURCES` (`spectool -g -R fedora/device-battery.spec` downloads it).
+
+## Debian and Ubuntu
+
+Nothing to do by hand: the release workflow builds a `.deb` on each release listed in its
+`deb` job (and CI builds and installs them on every change). To support another Debian or
+Ubuntu release, add it to the matrix in both `ci.yml` and `release.yml`. The script works
+out the dependencies itself, with `dpkg-shlibdeps` and `apt-file`.
 
 ## KDE Store
 

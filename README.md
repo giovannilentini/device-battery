@@ -106,6 +106,16 @@ sudo dnf copr enable giovannilentini/device-battery
 sudo dnf install device-battery
 ```
 
+**Debian 13, Ubuntu and Kubuntu 26.04**: download the `.deb` for your release from the
+[latest release](https://github.com/giovannilentini/device-battery/releases/latest), then:
+
+```sh
+sudo apt install ./device-battery_*.deb
+```
+
+There is no apt repository, so to update, install the `.deb` of the newer release the same
+way.
+
 Then restart Plasma (`systemctl --user restart plasma-plasmashell`), right-click the panel
 → *Add Widgets…* → **Device Battery**. In the system tray, go to *Configure System Tray… →
 Entries* instead.

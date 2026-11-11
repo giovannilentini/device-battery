@@ -80,6 +80,43 @@ jobs:
           UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
         run: ctest --test-dir build --output-on-failure
 
+  # The .deb the release workflow publishes: built, then installed with its dependencies, so
+  # a wrong or missing dependency name fails here and not on a user's machine.
+  deb:
+    name: .deb (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Debian 13
+            image: debian:trixie
+          - name: Ubuntu 26.04
+            image: ubuntu:26.04
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            git ca-certificates cmake ninja-build g++ extra-cmake-modules \
+            qt6-base-dev qt6-declarative-dev libbluetooth-dev dbus-daemon gettext \
+            dpkg-dev apt-file
+          apt-file update
+
+      - uses: actions/checkout@v5
+
+      - name: Build the package
+        run: packaging/debian/build-deb.sh . dist
+
+      - name: Install it
+        run: |
+          apt-get install -y --no-install-recommends ./dist/*.deb
+          dpkg -s device-battery
+          test -f /usr/share/plasma/plasmoids/io.github.giovannilentini.devicebattery/metadata.json
+
   format:
     name: clang-format
     runs-on: ubuntu-latest
