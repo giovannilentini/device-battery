@@ -160,13 +160,20 @@ void DeviceModel::forgetDisconnected()
     setDevices(connectedDevices());
 }
 
-void DeviceModel::configureNotifications(bool enabled, int threshold, const QString &title, const QString &body)
+void DeviceModel::configureNotifications(int instance, bool enabled, int threshold, const QString &appName, const QString &title, const QString &body)
 {
-    m_notify = enabled;
-    m_notifyThreshold = threshold;
+    m_notifySettings.insert(instance, {.enabled = enabled, .threshold = threshold});
+    m_notifyAppName = appName;
     m_notifyTitle = title;
     m_notifyBody = body;
     notifyLowBatteries();
+}
+
+void DeviceModel::removeNotifications(int instance)
+{
+    if (m_notifySettings.remove(instance)) {
+        notifyLowBatteries();
+    }
 }
 
 void DeviceModel::notifyLowBatteries()
@@ -177,8 +184,9 @@ void DeviceModel::notifyLowBatteries()
     });
     // Runs even while disabled, so turning notifications on does not warn about a battery
     // that was already low.
-    const QList<Device> toWarn = devicesToWarn(airPods, m_warned, m_notifyThreshold);
-    if (!m_notify || m_notifyTitle.isEmpty()) {
+    const NotificationSetting setting = notificationSettings(m_notifySettings.values());
+    const QList<Device> toWarn = devicesToWarn(airPods, m_warned, setting.threshold);
+    if (!setting.enabled || m_notifyTitle.isEmpty()) {
         return;
     }
     for (const Device &device : toWarn) {
@@ -187,7 +195,7 @@ void DeviceModel::notifyLowBatteries()
                                                              QStringLiteral("/org/freedesktop/Notifications"),
                                                              QStringLiteral("org.freedesktop.Notifications"),
                                                              QStringLiteral("Notify"));
-        notify << QStringLiteral("Device Battery") // app_name
+        notify << m_notifyAppName // app_name
                << 0u // replaces_id
                << QStringLiteral("battery-caution") // app_icon
                << m_notifyTitle.arg(device.name) // summary

@@ -155,6 +155,48 @@ private Q_SLOTS:
         QVERIFY(!device.charging);
     }
 
+    // Two mice of one model, each on its own receiver: only the serial number tells them apart.
+    void serialNumbersTellSameModelsApart()
+    {
+        Device first = makeDevice(QStringLiteral("upower:/a"), QStringLiteral("MX Master 3"));
+        first.serial = QStringLiteral("4082-11-22-33-44");
+        Device second = makeDevice(QStringLiteral("upower:/b"), QStringLiteral("MX Master 3"));
+        second.serial = QStringLiteral("4082-55-66-77-88");
+        QVERIFY(!isSameDevice(first, second));
+        // One of them going away is noticed while the other stays.
+        QCOMPARE(vanishedDevices({first, second}, {second}), QList<Device>{first});
+
+        // The same mouse under a new id, as after it woke up.
+        Device woken = first;
+        woken.id = QStringLiteral("upower:/c");
+        QVERIFY(isSameDevice(first, woken));
+        // UPower may announce a device before it has read the serial number.
+        woken.serial.clear();
+        QVERIFY(isSameDevice(first, woken));
+
+        // A serial number never joins devices with different names: some report a placeholder.
+        Device keyboard = makeDevice(QStringLiteral("upower:/d"), QStringLiteral("K380"));
+        keyboard.serial = first.serial;
+        QVERIFY(!isSameDevice(first, keyboard));
+    }
+
+    void serialNumberSurvivesTheCache()
+    {
+        Device mouse = makeGone(QStringLiteral("upower:/a"), QStringLiteral("MX Master 3"), 1000, 40);
+        mouse.serial = QStringLiteral("4082-11-22-33-44");
+        QCOMPARE(recentDevicesFromJson(recentDevicesToJson({mouse})), QList<Device>{mouse});
+    }
+
+    void notificationSettingsOfAllInstances()
+    {
+        QCOMPARE(notificationSettings({}), (NotificationSetting{false, 20}));
+        // The highest threshold among the instances that notify: nobody is warned too late.
+        QCOMPARE(notificationSettings({{true, 15}, {true, 30}, {false, 50}}), (NotificationSetting{true, 30}));
+        QCOMPARE(notificationSettings({{false, 50}, {true, 10}}), (NotificationSetting{true, 10}));
+        // All off: still a threshold, to keep track of the batteries that are already low.
+        QCOMPARE(notificationSettings({{false, 10}, {false, 25}}), (NotificationSetting{false, 25}));
+    }
+
     void modelNames_data()
     {
         QTest::addColumn<QString>("modalias");

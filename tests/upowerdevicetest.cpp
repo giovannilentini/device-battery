@@ -165,6 +165,12 @@ private Q_SLOTS:
         QCOMPARE(UPower::toDevice(Path, {{QStringLiteral("Vendor"), QStringLiteral("Logitech")}}).name, QStringLiteral("Logitech"));
     }
 
+    void readsSerialNumber()
+    {
+        QCOMPARE(UPower::toDevice(Path, {{QStringLiteral("Serial"), QStringLiteral(" 4082-11-22-33-44 ")}}).serial, QStringLiteral("4082-11-22-33-44"));
+        QVERIFY(UPower::toDevice(Path, {}).serial.isEmpty());
+    }
+
     void usbReceiverHasNoAddress()
     {
         QVERIFY(UPower::toDevice(Path, {{QStringLiteral("NativePath"), QStringLiteral("hidpp_battery_0")}}).address.isEmpty());

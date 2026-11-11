@@ -271,7 +271,13 @@ QString deviceKey(const Device &device)
 
 bool isSameDevice(const Device &a, const Device &b)
 {
-    return a.id == b.id || (!a.address.isEmpty() && a.address == b.address) || (a.name == b.name && a.kind == b.kind);
+    if (a.id == b.id || (!a.address.isEmpty() && a.address == b.address)) {
+        return true;
+    }
+    // The serial number only tells devices apart, it never joins them: some devices report a
+    // placeholder ("0000") that others share.
+    const bool differentSerial = !a.serial.isEmpty() && !b.serial.isEmpty() && a.serial != b.serial;
+    return a.name == b.name && a.kind == b.kind && !differentSerial;
 }
 
 QList<Device> updateRecentDevices(const QList<Device> &recent, const QList<Device> &gone, const QList<Device> &current, qint64 now)
@@ -318,6 +324,7 @@ QByteArray recentDevicesToJson(const QList<Device> &recent)
         devices.append(QJsonObject{
             {QStringLiteral("id"), device.id},
             {QStringLiteral("address"), device.address},
+            {QStringLiteral("serial"), device.serial},
             {QStringLiteral("name"), device.name},
             {QStringLiteral("kind"), static_cast<int>(device.kind)},
             {QStringLiteral("percentage"), device.percentage},
@@ -346,6 +353,7 @@ QList<Device> recentDevicesFromJson(const QByteArray &json)
         Device device;
         device.id = object.value(QStringLiteral("id")).toString();
         device.address = object.value(QStringLiteral("address")).toString();
+        device.serial = object.value(QStringLiteral("serial")).toString();
         device.name = object.value(QStringLiteral("name")).toString();
         device.model = object.value(QStringLiteral("model")).toString();
         device.percentage = object.value(QStringLiteral("percentage")).toInt(-1);
@@ -407,6 +415,20 @@ QList<Device> devicesToWarn(const QList<Device> &devices, QSet<QString> &warned,
     }
     warned = low; // re-arms every device that is no longer low
     return toWarn;
+}
+
+NotificationSetting notificationSettings(const QList<NotificationSetting> &instances)
+{
+    NotificationSetting result;
+    result.enabled = std::ranges::any_of(instances, &NotificationSetting::enabled);
+    bool first = true;
+    for (const NotificationSetting &instance : instances) {
+        if (instance.enabled == result.enabled && (first || instance.threshold > result.threshold)) {
+            result.threshold = instance.threshold;
+            first = false;
+        }
+    }
+    return result;
 }
 
 QList<SilentDevice> silentDevices(const QList<SilentDevice> &connected, const QList<Device> &shown)
