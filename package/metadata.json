@@ -1,5 +1,6 @@
 {
     "KPlugin": {
+        "BugReportUrl": "https://github.com/giovannilentini/device-battery/issues",
         "Authors": [
             {
                 "Email": "giovannilentini29@gmail.com",
@@ -12,7 +13,8 @@
         "Id": "io.github.giovannilentini.devicebattery",
         "License": "MIT",
         "Name": "Device Battery",
-        "Version": "1.1.0"
+        "Version": "1.1.0",
+        "Website": "https://github.com/giovannilentini/device-battery"
     },
     "KPackageStructure": "Plasma/Applet",
     "X-Plasma-API-Minimum-Version": "6.0",

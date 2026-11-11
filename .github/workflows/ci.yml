@@ -23,6 +23,11 @@ jobs:
           - name: Arch Linux
             image: archlinux:latest
             sanitizers: ""
+          # The oldest Qt the README promises to build with that a current distribution
+          # ships (6.8): Fedora and Arch only compile the code paths for the newest Qt.
+          - name: Debian 13
+            image: debian:trixie
+            sanitizers: ""
 
     steps:
       - name: Install dependencies (Fedora)
@@ -38,6 +43,17 @@ jobs:
         run: >
           pacman -Syu --noconfirm --needed
           git cmake ninja gcc extra-cmake-modules qt6-base qt6-declarative bluez-libs dbus
+
+      # The packages the README lists for Debian, plus Ninja and dbus-run-session for the tests.
+      - name: Install dependencies (Debian)
+        if: startsWith(matrix.image, 'debian')
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update
+          apt-get install -y \
+            git cmake ninja-build g++ extra-cmake-modules \
+            qt6-base-dev qt6-declarative-dev libbluetooth-dev dbus-daemon
 
       - uses: actions/checkout@v5
 
@@ -82,6 +98,19 @@ jobs:
           cmake -B build -G Ninja -DBUILD_TESTING=OFF -DKDE_CLANG_FORMAT_EXECUTABLE=/opt/clang-format/bin/clang-format
           cmake --build build --target clang-format
           git diff --exit-code || { echo "::error::Run 'cmake --build build --target clang-format' and commit the result."; exit 1; }
+
+  # The translation template must match the texts in the QML, or translators work on old ones.
+  translations:
+    name: Translation template
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install gettext
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gettext
+
+      - name: Check that the template is up to date
+        run: scripts/extract-messages.sh --check || { echo "::error::Run scripts/extract-messages.sh and commit the result."; exit 1; }
 
   qmllint:
     name: qmllint

@@ -12,10 +12,11 @@ so it is distributed as distribution packages, not through *Get New Widgets…*.
 
 ## Making a release
 
-1. Set the new version in `CMakeLists.txt` (`project(... VERSION x.y.z)`),
-   `package/metadata.json` (`"Version"`), `fedora/device-battery.spec` (`Version:`, reset
-   `Release:` to 1 and add a `%changelog` entry) and `arch/PKGBUILD` (`pkgver=`, reset
-   `pkgrel=1`). The release workflow refuses to run if any of them differs from the tag.
+1. Run `scripts/bump-version.sh X.Y.Z`. It sets the version in `CMakeLists.txt`,
+   `package/metadata.json`, `fedora/device-battery.spec` and `arch/PKGBUILD` (and resets
+   `Release:` and `pkgrel` to 1); the release workflow refuses to run if any of them differs
+   from the tag. Then, by hand: rename *Unreleased* in `CHANGELOG.md` to the version and add
+   a `%changelog` entry to the spec.
 2. Commit, then tag and push:
    ```sh
    git tag -a vX.Y.Z -m "Device Battery X.Y.Z" -m "- what changed"
@@ -26,6 +27,13 @@ so it is distributed as distribution packages, not through *Get New Widgets…*.
    GitHub release. It can also be run by hand (*Actions → Release → Run workflow*) for
    an existing tag.
 3. Update the packages (below).
+
+## Translations
+
+There are none yet. Once `po/` holds a `.po` file, the build needs gettext (`msgfmt`) and
+installs `share/locale/<language>/LC_MESSAGES/plasma_applet_io.github.giovannilentini.devicebattery.mo`:
+add `gettext` to the build dependencies of both packages, and `%find_lang` with `%files -f`
+to the spec.
 
 ## AUR (Arch Linux)
 

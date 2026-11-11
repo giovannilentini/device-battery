@@ -1,0 +1,50 @@
+name: AirPods or Beats show wrong or no data
+description: Wrong levels, a missing or wrong model name, or earbuds shown in the wrong ear.
+labels: [airpods]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        AirPods and Beats are read over Apple's own protocol, which differs a little between
+        models. The lines asked for below are what is needed to add or fix yours.
+  - type: input
+    id: model
+    attributes:
+      label: Model
+      description: The exact model, e.g. "AirPods Pro (2nd generation, USB-C)" or "Beats Studio Buds+".
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong
+      description: What the widget shows, and what it should show (e.g. the levels your phone reports).
+    validations:
+      required: true
+  - type: input
+    id: modalias
+    attributes:
+      label: Modalias
+      description: The `Modalias` line of `bluetoothctl info <address>` while the device is connected.
+      placeholder: "Modalias: bluetooth:v004Cp2014d0B5A"
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Debug log
+      description: |
+        Run `QT_LOGGING_RULES="devicebattery.debug=true" plasmashell --replace`, reproduce the
+        problem, and paste the lines that start with `devicebattery:`, above all the
+        `Battery report`, `Ear detection report` and `Noise control report` ones.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versions
+      description: Of the widget, Plasma and your distribution.
+      placeholder: Device Battery 1.1.0, Plasma 6.5, Fedora 43
+    validations:
+      required: true
