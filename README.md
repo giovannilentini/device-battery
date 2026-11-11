@@ -96,7 +96,7 @@ use a package for your distribution, or build it from source. You need **Plasma 
 **Arch Linux, Manjaro, EndeavourOS** (AUR):
 
 ```sh
-yay -S plasma6-applets-device-battery
+paru -S plasma6-applets-device-battery
 ```
 
 **Fedora** (COPR):

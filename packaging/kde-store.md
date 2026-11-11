@@ -26,7 +26,7 @@ See the battery of all your wireless devices at a glance, like Apple's Batteries
 
 **Installation:** this widget contains a compiled plugin, so it cannot be installed from *Get New Widgets…*. Install it from your distribution instead:
 
-- Arch Linux: `yay -S plasma6-applets-device-battery` (AUR)
+- Arch Linux: `paru -S plasma6-applets-device-battery` (AUR)
 - Fedora: `sudo dnf copr enable giovannilentini/device-battery` then `sudo dnf install device-battery`
 - Other distributions: build it from source, see https://github.com/giovannilentini/device-battery#build-from-source
 
