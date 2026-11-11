@@ -60,9 +60,18 @@ qml_dir=${qml_dir%/io/github/giovannilentini/devicebattery}
 depends=$(cd "$work" && mkdir debian && : > debian/control \
     && dpkg-shlibdeps --ignore-missing-info -O "$plugin" | sed 's/^shlibs:Depends=//')
 
+# Prints the packages that ship a file, as alternatives ("a | b") if there are several.
+owners() {
+    apt-file search --package-only --regexp "$1\$" | sort -u | paste -sd'|' | sed 's/|/ | /g'
+}
+
 for module in $qml_modules; do
     path="$qml_dir/$(echo "$module" | tr . /)/qmldir"
-    packages=$(apt-file search --package-only --regexp "$path\$" | sort -u | paste -sd'|' | sed 's/|/ | /g')
+    packages=$(owners "$path")
+    case "$packages:$module" in
+        # Before Plasma 6.4 these two are not files: plasmashell itself registers them.
+        :org.kde.plasma.configuration | :org.kde.plasma.plasmoid) packages=$(owners usr/bin/plasmashell) ;;
+    esac
     [ -n "$packages" ] || { echo "no package ships the QML module $module ($path)" >&2; exit 1; }
     echo "$module: $packages"
     case ", $depends, " in
