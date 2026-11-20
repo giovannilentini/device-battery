@@ -97,7 +97,11 @@ Item {
             return i18ncp("@info:status disconnected device", "%1 h ago", "%1 h ago", hours);
         }
         const days = Math.floor(hours / 24);
-        return i18ncp("@info:status disconnected device", "Yesterday", "%1 days ago", days);
+        // Not a plural form: in many languages the "one" form also covers 21, 31, ...
+        if (days === 1) {
+            return i18nc("@info:status disconnected device", "Yesterday");
+        }
+        return i18ncp("@info:status disconnected device", "%1 day ago", "%1 days ago", days);
     }
 
     function noiseControlText(mode) {

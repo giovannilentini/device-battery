@@ -45,18 +45,12 @@ bool DeviceFilter::accepts(const Device &device) const
     if (!m_showDisconnected && !device.connected) {
         return false;
     }
-    const QString legacyKey = legacyDeviceKey(device);
-    return !m_hiddenKeys.contains(deviceKey(device)) && (legacyKey.isEmpty() || !m_hiddenKeys.contains(legacyKey));
+    return !isHiddenBy(device, m_hiddenKeys);
 }
 
 QString DeviceFilter::customName(const Device &device) const
 {
-    const QString name = m_customNames.value(deviceKey(device)).toString().trimmed();
-    if (!name.isEmpty()) {
-        return name;
-    }
-    const QString legacyKey = legacyDeviceKey(device);
-    return legacyKey.isEmpty() ? QString() : m_customNames.value(legacyKey).toString().trimmed();
+    return customDeviceName(device, m_customNames);
 }
 
 QStringList DeviceFilter::hiddenKeys() const
