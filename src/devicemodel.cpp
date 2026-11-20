@@ -71,6 +71,7 @@ void DeviceModel::release()
     m_upower.reset();
     m_airPods.reset(); // closes the AAP sessions
     m_graceTimer.stop();
+    m_vanishing.clear();
     setDevices({}); // not "disconnected": nothing watches them any more
     m_usbReceivers.clear();
     updateSilentDevices();
@@ -85,19 +86,27 @@ void DeviceModel::sync()
     const QList<Device> vanished = vanishedDevices(connectedDevices(), current);
     if (vanished.isEmpty()) {
         m_graceTimer.stop();
+        m_vanishing.clear();
         setDevices(withRecent(current));
         return;
     }
     // Keep them for a moment; syncNow() drops them for good unless they came back by then.
-    if (!m_graceTimer.isActive()) {
+    // A device that vanishes while the timer already runs gets the full period too.
+    QSet<QString> ids;
+    for (const Device &device : vanished) {
+        ids.insert(device.id);
+    }
+    if (!m_graceTimer.isActive() || !m_vanishing.contains(ids)) {
         m_graceTimer.start();
     }
+    m_vanishing = ids;
     setDevices(withRecent(mergeDevices(current, vanished)));
 }
 
 void DeviceModel::syncNow()
 {
     m_graceTimer.stop();
+    m_vanishing.clear();
     if (!m_upower || !m_airPods) {
         return;
     }
@@ -160,9 +169,16 @@ void DeviceModel::forgetDisconnected()
     setDevices(connectedDevices());
 }
 
-void DeviceModel::configureNotifications(int instance, bool enabled, int threshold, const QString &appName, const QString &title, const QString &body)
+void DeviceModel::configureNotifications(int instance,
+                                         bool enabled,
+                                         int threshold,
+                                         const QStringList &hiddenKeys,
+                                         const QVariantMap &customNames,
+                                         const QString &appName,
+                                         const QString &title,
+                                         const QString &body)
 {
-    m_notifySettings.insert(instance, {.enabled = enabled, .threshold = threshold});
+    m_notifySettings.insert(instance, {.enabled = enabled, .threshold = threshold, .hiddenKeys = hiddenKeys, .customNames = customNames});
     m_notifyAppName = appName;
     m_notifyTitle = title;
     m_notifyBody = body;
@@ -182,15 +198,27 @@ void DeviceModel::notifyLowBatteries()
     std::ranges::copy_if(devices(), std::back_inserter(airPods), [](const Device &device) {
         return device.id.startsWith(QLatin1String("aap:"));
     });
+    // By instance id, so that "the first instance with a custom name" does not change randomly.
+    QList<int> ids = m_notifySettings.keys();
+    std::ranges::sort(ids);
+    QList<NotificationSetting> instances;
+    for (const int id : std::as_const(ids)) {
+        instances.append(m_notifySettings.value(id));
+    }
     // Runs even while disabled, so turning notifications on does not warn about a battery
     // that was already low.
-    const NotificationSetting setting = notificationSettings(m_notifySettings.values());
-    const QList<Device> toWarn = devicesToWarn(airPods, m_warned, setting.threshold);
-    if (!setting.enabled || m_notifyTitle.isEmpty()) {
+    const QList<Device> toWarn = devicesToWarn(airPods, m_warned, [&instances](const Device &device) {
+        return notificationFor(device, instances).threshold;
+    });
+    if (m_notifyTitle.isEmpty()) {
         return;
     }
     for (const Device &device : toWarn) {
-        qCDebug(DEVICEBATTERY) << "Low battery notification for" << device.name << device.percentage;
+        const DeviceNotification notification = notificationFor(device, instances);
+        if (!notification.enabled) {
+            continue;
+        }
+        qCDebug(DEVICEBATTERY) << "Low battery notification for" << notification.name << device.percentage;
         QDBusMessage notify = QDBusMessage::createMethodCall(QStringLiteral("org.freedesktop.Notifications"),
                                                              QStringLiteral("/org/freedesktop/Notifications"),
                                                              QStringLiteral("org.freedesktop.Notifications"),
@@ -198,7 +226,7 @@ void DeviceModel::notifyLowBatteries()
         notify << m_notifyAppName // app_name
                << 0u // replaces_id
                << QStringLiteral("battery-caution") // app_icon
-               << m_notifyTitle.arg(device.name) // summary
+               << m_notifyTitle.arg(notification.name) // summary
                << m_notifyBody.arg(device.percentage) // body
                << QStringList() // actions
                << QVariantMap{{QStringLiteral("urgency"), QVariant::fromValue<uchar>(1)}} // normal

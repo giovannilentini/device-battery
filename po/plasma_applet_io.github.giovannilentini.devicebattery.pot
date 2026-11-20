@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: device-battery\n"
 "Report-Msgid-Bugs-To: https://github.com/giovannilentini/device-battery/issues\n"
-"POT-Creation-Date: 2026-11-11 11:57+0100\n"
+"POT-Creation-Date: 2026-11-11 12:20+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -28,38 +28,38 @@ msgctxt "@title"
 msgid "Devices"
 msgstr ""
 
-#: package/contents/ui/DesktopRepresentation.qml:84
-#: package/contents/ui/DeviceDelegate.qml:120
+#: package/contents/ui/DesktopRepresentation.qml:94
+#: package/contents/ui/DeviceDelegate.qml:124
 msgctxt "@label short for left earbud"
 msgid "L"
 msgstr ""
 
-#: package/contents/ui/DesktopRepresentation.qml:86
-#: package/contents/ui/DeviceDelegate.qml:122
+#: package/contents/ui/DesktopRepresentation.qml:96
+#: package/contents/ui/DeviceDelegate.qml:126
 msgctxt "@label short for right earbud"
 msgid "R"
 msgstr ""
 
-#: package/contents/ui/DesktopRepresentation.qml:88
-#: package/contents/ui/DeviceDelegate.qml:124
+#: package/contents/ui/DesktopRepresentation.qml:98
+#: package/contents/ui/DeviceDelegate.qml:128
 msgctxt "@label short for charging case"
 msgid "C"
 msgstr ""
 
-#: package/contents/ui/DesktopRepresentation.qml:123
-#: package/contents/ui/DesktopRepresentation.qml:157
+#: package/contents/ui/DesktopRepresentation.qml:133
+#: package/contents/ui/DesktopRepresentation.qml:167
 #: package/contents/ui/DeviceDelegate.qml:50
-#: package/contents/ui/DeviceDelegate.qml:162
+#: package/contents/ui/DeviceDelegate.qml:166
 msgctxt "@label"
 msgid "Unknown device"
 msgstr ""
 
-#: package/contents/ui/DesktopRepresentation.qml:125
+#: package/contents/ui/DesktopRepresentation.qml:135
 msgctxt "@info:tooltip battery level"
 msgid "%1, charging"
 msgstr ""
 
-#: package/contents/ui/DesktopRepresentation.qml:231
+#: package/contents/ui/DesktopRepresentation.qml:242
 #: package/contents/ui/FullRepresentation.qml:145
 msgctxt "@info"
 msgid "No devices with battery information"
@@ -70,41 +70,41 @@ msgctxt "@info:status"
 msgid "Charging"
 msgstr ""
 
-#: package/contents/ui/DeviceDelegate.qml:66 package/contents/ui/main.qml:89
+#: package/contents/ui/DeviceDelegate.qml:66 package/contents/ui/main.qml:97
 msgctxt "@info:tooltip left earbud"
 msgid "Left"
 msgstr ""
 
-#: package/contents/ui/DeviceDelegate.qml:69 package/contents/ui/main.qml:92
+#: package/contents/ui/DeviceDelegate.qml:69 package/contents/ui/main.qml:100
 msgctxt "@info:tooltip right earbud"
 msgid "Right"
 msgstr ""
 
-#: package/contents/ui/DeviceDelegate.qml:72 package/contents/ui/main.qml:95
+#: package/contents/ui/DeviceDelegate.qml:72 package/contents/ui/main.qml:103
 msgctxt "@info:tooltip charging case"
 msgid "Case"
 msgstr ""
 
 #: package/contents/ui/DeviceDelegate.qml:76
 #: package/contents/ui/PercentLabel.qml:23
-#: package/contents/ui/configGeneral.qml:32 package/contents/ui/main.qml:81
+#: package/contents/ui/configGeneral.qml:32 package/contents/ui/main.qml:89
 #, javascript-format
 msgctxt "battery level in percent"
 msgid "%1%"
 msgstr ""
 
 #: package/contents/ui/DeviceDelegate.qml:77
-#: package/contents/ui/PercentLabel.qml:28 package/contents/ui/main.qml:82
+#: package/contents/ui/PercentLabel.qml:28 package/contents/ui/main.qml:90
 msgctxt "@info:tooltip battery level"
 msgid "unknown"
 msgstr ""
 
-#: package/contents/ui/DeviceDelegate.qml:79 package/contents/ui/main.qml:99
+#: package/contents/ui/DeviceDelegate.qml:79 package/contents/ui/main.qml:107
 msgctxt "@info:tooltip earbud or case: battery level"
 msgid "%1 %2, charging"
 msgstr ""
 
-#: package/contents/ui/DeviceDelegate.qml:80 package/contents/ui/main.qml:100
+#: package/contents/ui/DeviceDelegate.qml:80 package/contents/ui/main.qml:108
 msgctxt "@info:tooltip earbud or case: battery level"
 msgid "%1 %2"
 msgstr ""
@@ -128,29 +128,34 @@ msgid_plural "%1 h ago"
 msgstr[0] ""
 msgstr[1] ""
 
-#: package/contents/ui/DeviceDelegate.qml:100
+#: package/contents/ui/DeviceDelegate.qml:102
 msgctxt "@info:status disconnected device"
 msgid "Yesterday"
+msgstr ""
+
+#: package/contents/ui/DeviceDelegate.qml:104
+msgctxt "@info:status disconnected device"
+msgid "%1 day ago"
 msgid_plural "%1 days ago"
 msgstr[0] ""
 msgstr[1] ""
 
-#: package/contents/ui/DeviceDelegate.qml:106
+#: package/contents/ui/DeviceDelegate.qml:110
 msgctxt "@info:status noise control mode"
 msgid "Noise control off"
 msgstr ""
 
-#: package/contents/ui/DeviceDelegate.qml:108
+#: package/contents/ui/DeviceDelegate.qml:112
 msgctxt "@info:status noise control mode"
 msgid "Noise cancellation"
 msgstr ""
 
-#: package/contents/ui/DeviceDelegate.qml:110
+#: package/contents/ui/DeviceDelegate.qml:114
 msgctxt "@info:status noise control mode"
 msgid "Transparency"
 msgstr ""
 
-#: package/contents/ui/DeviceDelegate.qml:112
+#: package/contents/ui/DeviceDelegate.qml:116
 msgctxt "@info:status noise control mode"
 msgid "Adaptive"
 msgstr ""
@@ -210,32 +215,32 @@ msgctxt "@info:status rough battery level"
 msgid "Full"
 msgstr ""
 
-#: package/contents/ui/configDevices.qml:121
+#: package/contents/ui/configDevices.qml:145
 msgctxt "@info:tooltip"
 msgid "Show this device"
 msgstr ""
 
-#: package/contents/ui/configDevices.qml:123
+#: package/contents/ui/configDevices.qml:147
 msgctxt "@option:check device name"
 msgid "Show %1"
 msgstr ""
 
-#: package/contents/ui/configDevices.qml:139
+#: package/contents/ui/configDevices.qml:163
 msgctxt "@label:textbox device name"
 msgid "Name for %1"
 msgstr ""
 
-#: package/contents/ui/configDevices.qml:149
+#: package/contents/ui/configDevices.qml:173
 msgctxt "@info"
 msgid "No devices yet"
 msgstr ""
 
-#: package/contents/ui/configDevices.qml:150
+#: package/contents/ui/configDevices.qml:174
 msgctxt "@info"
 msgid "Devices appear here once they have been connected."
 msgstr ""
 
-#: package/contents/ui/configDevices.qml:155
+#: package/contents/ui/configDevices.qml:179
 msgctxt "@info"
 msgid "Untick a device to hide it. Type a name to show it instead of the device's own."
 msgstr ""
@@ -275,78 +280,78 @@ msgctxt "@option:check"
 msgid "List disconnected devices with their last levels"
 msgstr ""
 
-#: package/contents/ui/main.qml:26
+#: package/contents/ui/main.qml:28
 msgctxt "@title:notification %1 is a device name"
 msgid "%1: battery low"
 msgstr ""
 
-#: package/contents/ui/main.qml:27
+#: package/contents/ui/main.qml:29
 #, javascript-format
 msgctxt "@info:notification %1 is a battery level"
 msgid "%1% left"
 msgstr ""
 
-#: package/contents/ui/main.qml:70
+#: package/contents/ui/main.qml:78
 msgctxt "@info:tooltip rough battery level"
 msgid "critical"
 msgstr ""
 
-#: package/contents/ui/main.qml:72
+#: package/contents/ui/main.qml:80
 msgctxt "@info:tooltip rough battery level"
 msgid "low"
 msgstr ""
 
-#: package/contents/ui/main.qml:74
+#: package/contents/ui/main.qml:82
 msgctxt "@info:tooltip rough battery level"
 msgid "normal"
 msgstr ""
 
-#: package/contents/ui/main.qml:76
+#: package/contents/ui/main.qml:84
 msgctxt "@info:tooltip rough battery level"
 msgid "high"
 msgstr ""
 
-#: package/contents/ui/main.qml:78
+#: package/contents/ui/main.qml:86
 msgctxt "@info:tooltip rough battery level"
 msgid "full"
 msgstr ""
 
-#: package/contents/ui/main.qml:103
+#: package/contents/ui/main.qml:111
 msgctxt "@info:tooltip earbud: battery level, where it is"
 msgid "%1, in ear"
 msgstr ""
 
-#: package/contents/ui/main.qml:105
+#: package/contents/ui/main.qml:113
 msgctxt "@info:tooltip earbud: battery level, where it is"
 msgid "%1, out of ear"
 msgstr ""
 
-#: package/contents/ui/main.qml:130
+#: package/contents/ui/main.qml:138
 msgctxt "@info:tooltip"
 msgid "No devices with battery information"
 msgstr ""
 
-#: package/contents/ui/main.qml:136
+#: package/contents/ui/main.qml:144
 msgctxt "@info:tooltip device name: levels of its parts"
 msgid "%1: %2"
 msgstr ""
 
-#: package/contents/ui/main.qml:141
+#: package/contents/ui/main.qml:149
 msgctxt "@info:tooltip device name: battery level"
 msgid "%1: %2, charging"
 msgstr ""
 
-#: package/contents/ui/main.qml:142
+#: package/contents/ui/main.qml:150
 msgctxt "@info:tooltip device name: battery level"
 msgid "%1: %2"
 msgstr ""
 
-#: package/contents/ui/main.qml:148
+#: package/contents/ui/main.qml:156
 msgctxt "@action:inmenu"
 msgid "Forget Disconnected Devices"
 msgstr ""
 
-#: package/contents/ui/main.qml:154
+#: package/contents/ui/main.qml:162
 msgctxt "@action:inmenu"
 msgid "&Bluetooth Settings…"
 msgstr ""

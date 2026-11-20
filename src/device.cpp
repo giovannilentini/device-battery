@@ -11,6 +11,7 @@
 #include <QSet>
 
 #include <algorithm>
+#include <iterator>
 
 QString iconName(DeviceKind kind)
 {
@@ -280,6 +281,22 @@ QString legacyDeviceKey(const Device &device)
     return device.address.isEmpty() && !device.serial.isEmpty() ? QStringLiteral("name:") + device.name : QString();
 }
 
+bool isHiddenBy(const Device &device, const QStringList &hiddenKeys)
+{
+    const QString legacyKey = legacyDeviceKey(device);
+    return hiddenKeys.contains(deviceKey(device)) || (!legacyKey.isEmpty() && hiddenKeys.contains(legacyKey));
+}
+
+QString customDeviceName(const Device &device, const QVariantMap &customNames)
+{
+    const QString name = customNames.value(deviceKey(device)).toString().trimmed();
+    if (!name.isEmpty()) {
+        return name;
+    }
+    const QString legacyKey = legacyDeviceKey(device);
+    return legacyKey.isEmpty() ? QString() : customNames.value(legacyKey).toString().trimmed();
+}
+
 bool isSameDevice(const Device &a, const Device &b)
 {
     if (a.id == b.id || (!a.address.isEmpty() && a.address == b.address)) {
@@ -413,10 +430,17 @@ QList<Device> vanishedDevices(const QList<Device> &shown, const QList<Device> &n
 
 QList<Device> devicesToWarn(const QList<Device> &devices, QSet<QString> &warned, int threshold)
 {
+    return devicesToWarn(devices, warned, [threshold](const Device &) {
+        return threshold;
+    });
+}
+
+QList<Device> devicesToWarn(const QList<Device> &devices, QSet<QString> &warned, const std::function<int(const Device &)> &threshold)
+{
     QList<Device> toWarn;
     QSet<QString> low;
     for (const Device &device : devices) {
-        if (!device.connected || device.charging || device.percentage < 0 || device.percentage > threshold) {
+        if (!device.connected || device.charging || device.percentage < 0 || device.percentage > threshold(device)) {
             continue;
         }
         low.insert(device.id);
@@ -437,6 +461,30 @@ NotificationSetting notificationSettings(const QList<NotificationSetting> &insta
         if (instance.enabled == result.enabled && (first || instance.threshold > result.threshold)) {
             result.threshold = instance.threshold;
             first = false;
+        }
+    }
+    return result;
+}
+
+DeviceNotification notificationFor(const Device &device, const QList<NotificationSetting> &instances)
+{
+    QList<NotificationSetting> showing;
+    std::ranges::copy_if(instances, std::back_inserter(showing), [&device](const NotificationSetting &instance) {
+        return !isHiddenBy(device, instance.hiddenKeys);
+    });
+    // Hidden everywhere: never notified, but the level is still tracked (see devicesToWarn()).
+    const NotificationSetting combined = notificationSettings(showing.isEmpty() ? instances : showing);
+    DeviceNotification result{
+        .enabled = !showing.isEmpty() && combined.enabled,
+        .threshold = combined.threshold,
+        .name = device.name,
+    };
+    for (const NotificationSetting &instance : std::as_const(showing)) {
+        if (instance.enabled) {
+            if (const QString name = customDeviceName(device, instance.customNames); !name.isEmpty()) {
+                result.name = name;
+                break;
+            }
         }
     }
     return result;

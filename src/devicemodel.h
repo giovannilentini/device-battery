@@ -52,10 +52,18 @@ public:
     // power management already notifies about them. The texts come from QML, which has the
     // widget's translations: `appName` is the widget's name, in `title` %1 is the device name,
     // in `body` %1 the level.
-    // Every widget instance calls this with its own id and settings. The backend is shared and
-    // notifies once per device: if any instance has notifications on, at the highest threshold
-    // among those that do (see notificationSettings()).
-    Q_INVOKABLE void configureNotifications(int instance, bool enabled, int threshold, const QString &appName, const QString &title, const QString &body);
+    // Every widget instance calls this with its own id and settings, including the devices it
+    // hides and the names it gives them. The backend is shared and notifies once per device: if
+    // an instance that shows the device has notifications on, at the highest threshold among
+    // those, under that instance's name for it (see notificationFor()).
+    Q_INVOKABLE void configureNotifications(int instance,
+                                            bool enabled,
+                                            int threshold,
+                                            const QStringList &hiddenKeys,
+                                            const QVariantMap &customNames,
+                                            const QString &appName,
+                                            const QString &title,
+                                            const QString &body);
     // Forgets the settings of a widget instance that is being removed.
     Q_INVOKABLE void removeNotifications(int instance);
 
@@ -75,6 +83,7 @@ private:
     std::unique_ptr<AirPodsSource> m_airPods;
     int m_users = 0;
     QTimer m_graceTimer; // runs while vanished devices are still shown, see sync()
+    QSet<QString> m_vanishing; // ids of the devices the grace timer runs for
     QList<Device> m_recent; // recently disconnected devices, the most recent first
 
     void notifyLowBatteries();

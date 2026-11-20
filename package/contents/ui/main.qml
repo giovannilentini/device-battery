@@ -23,6 +23,7 @@ PlasmoidItem {
     // there are, combining their settings), with texts translated here.
     function configureNotifications() {
         DeviceModel.configureNotifications(Plasmoid.id, Plasmoid.configuration.notifyLow, Plasmoid.configuration.lowThreshold,
+            Plasmoid.configuration.hiddenDevices, parseNames(Plasmoid.configuration.deviceNames),
             Plasmoid.title,
             i18nc("@title:notification %1 is a device name", "%1: battery low"),
             i18nc("@info:notification %1 is a battery level", "%1% left"));
@@ -34,6 +35,12 @@ PlasmoidItem {
             root.configureNotifications();
         }
         function onLowThresholdChanged() {
+            root.configureNotifications();
+        }
+        function onHiddenDevicesChanged() {
+            root.configureNotifications();
+        }
+        function onDeviceNamesChanged() {
             root.configureNotifications();
         }
     }
