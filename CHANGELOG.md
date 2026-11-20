@@ -3,6 +3,8 @@
 ## Unreleased
 
 - `.deb` packages for Debian 13 and Ubuntu 26.04 are attached to every release
+- Recently disconnected devices are no longer listed by default: turn on *List disconnected
+  devices* in the settings to see them
 - Low battery notifications use the name you gave a device, and are not sent for devices
   hidden in every instance of the widget
 - Fix: on a small desktop widget, "Disconnected … ago" did not update

@@ -216,10 +216,11 @@ systemctl --user restart plasma-plasmashell
 - **Notify when AirPods or Beats run low.** One notification when the earbud in use
   reaches the *Low battery at* level, and again only after it charged. Plasma already
   notifies about UPower devices (mice, keyboards, …), so they are left out. With several
-  widget instances you are notified once, if any of them has this on, at the highest
-  *Low battery at* level among those.
-- **List disconnected devices.** Keep devices you disconnected in the popup, under
-  *Disconnected*, with their last levels. They never count as low.
+  widget instances you are notified once, if any instance that shows the device has this
+  on, at the highest *Low battery at* level among those and under the name it gives the
+  device. A device hidden in every instance is not notified about.
+- **List disconnected devices.** Off by default. Keep devices you disconnected in the
+  popup, under *Disconnected*, with their last levels. They never count as low.
 - **Devices page.** Hide a device (e.g. a controller that always sits on its charger) or
   give it another name. Settings follow the device across reconnections: Bluetooth devices
   by their address, others by their serial number or, without one, by their name. Two

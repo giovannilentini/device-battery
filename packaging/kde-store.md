@@ -20,7 +20,7 @@ See the battery of all your wireless devices at a glance, like Apple's Batteries
 - Headphones, headsets, keyboards, mice, touchpads and game controllers, over Bluetooth or a USB receiver.
 - In the panel or the system tray: the device closest to running out inside a ring, and a list of every device. In the tray it hides when nothing is connected and comes forward when a battery is low.
 - On the desktop: a grid of rings that adapts to the widget's size.
-- Disconnected devices stay listed with their last level and when they were last seen.
+- Optionally, disconnected devices stay listed with their last level and when they were last seen.
 - Hide or rename devices. Devices that do not report a battery are named, with a hint.
 - No polling: it only does work when a device reports something.
 
