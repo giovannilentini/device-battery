@@ -206,12 +206,56 @@ private Q_SLOTS:
 
     void notificationSettingsOfAllInstances()
     {
-        QCOMPARE(notificationSettings({}), (NotificationSetting{false, 20}));
+        const auto setting = [](bool enabled, int threshold) {
+            NotificationSetting result;
+            result.enabled = enabled;
+            result.threshold = threshold;
+            return result;
+        };
+        QCOMPARE(notificationSettings({}), setting(false, 20));
         // The highest threshold among the instances that notify: nobody is warned too late.
-        QCOMPARE(notificationSettings({{true, 15}, {true, 30}, {false, 50}}), (NotificationSetting{true, 30}));
-        QCOMPARE(notificationSettings({{false, 50}, {true, 10}}), (NotificationSetting{true, 10}));
+        QCOMPARE(notificationSettings({setting(true, 15), setting(true, 30), setting(false, 50)}), setting(true, 30));
+        QCOMPARE(notificationSettings({setting(false, 50), setting(true, 10)}), setting(true, 10));
         // All off: still a threshold, to keep track of the batteries that are already low.
-        QCOMPARE(notificationSettings({{false, 10}, {false, 25}}), (NotificationSetting{false, 25}));
+        QCOMPARE(notificationSettings({setting(false, 10), setting(false, 25)}), setting(false, 25));
+    }
+
+    void notificationFollowsTheInstancesShowingTheDevice()
+    {
+        Device pods = makeDevice(QStringLiteral("aap:1"), QStringLiteral("AirPods"), 10);
+        pods.address = QStringLiteral("38:C4:3A:7B:06:85");
+        const QString key = deviceKey(pods);
+
+        // Shown by an enabled instance: its threshold and its name for the device.
+        const NotificationSetting renames{true, 30, {}, {{key, QStringLiteral("  My pods ")}}};
+        QCOMPARE(notificationFor(pods, {renames}), (DeviceNotification{true, 30, QStringLiteral("My pods")}));
+
+        // An instance that hides the device does not count, neither its threshold nor its name.
+        const NotificationSetting hides{true, 50, {key}, {{key, QStringLiteral("Hidden name")}}};
+        QCOMPARE(notificationFor(pods, {hides, renames}), (DeviceNotification{true, 30, QStringLiteral("My pods")}));
+
+        // Hidden in every instance: never notified, but the threshold still tracks the level.
+        QCOMPARE(notificationFor(pods, {hides}), (DeviceNotification{false, 50, QStringLiteral("AirPods")}));
+
+        // Shown only by an instance with notifications off: no notification.
+        const NotificationSetting off{false, 20, {}, {}};
+        QCOMPARE(notificationFor(pods, {hides, off}).enabled, false);
+
+        // The name of an instance with notifications off is not used.
+        const NotificationSetting offRenames{false, 20, {}, {{key, QStringLiteral("Off name")}}};
+        const NotificationSetting plain{true, 20, {}, {}};
+        QCOMPARE(notificationFor(pods, {offRenames, plain}).name, QStringLiteral("AirPods"));
+    }
+
+    void warnsWithAThresholdPerDevice()
+    {
+        QSet<QString> warned;
+        const Device a = makeDevice(QStringLiteral("aap:1"), QStringLiteral("A"), 25);
+        const Device b = makeDevice(QStringLiteral("aap:2"), QStringLiteral("B"), 25);
+        const QList<Device> toWarn = devicesToWarn({a, b}, warned, [](const Device &device) {
+            return device.id == QLatin1String("aap:1") ? 30 : 20;
+        });
+        QCOMPARE(toWarn, QList<Device>{a});
     }
 
     void modelNames_data()

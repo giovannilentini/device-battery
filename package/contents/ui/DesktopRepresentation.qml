@@ -70,6 +70,16 @@ Item {
     }
     readonly property bool useList: count > 0 && fit.ring < minimumRing
 
+    // For "Disconnected 2 h ago" in the list: refreshed once a minute, only while it is shown.
+    property date now: new Date()
+    onUseListChanged: now = new Date()
+    Timer {
+        interval: 60000
+        repeat: true
+        running: desktop.useList && desktop.visible
+        onTriggered: desktop.now = new Date()
+    }
+
     Layout.minimumWidth: Kirigami.Units.gridUnit * 8
     Layout.minimumHeight: Kirigami.Units.gridUnit * 6
     Layout.preferredWidth: Kirigami.Units.gridUnit * 6 * Math.max(2, Math.min(4, count)) + margin * 2
@@ -218,6 +228,7 @@ Item {
 
                 delegate: DeviceDelegate {
                     width: ListView.view.width
+                    now: desktop.now
                 }
             }
         }

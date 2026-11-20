@@ -4,6 +4,10 @@
 #include <QList>
 #include <QSet>
 #include <QString>
+#include <QStringList>
+#include <QVariantMap>
+
+#include <functional>
 
 // What kind of peripheral a battery belongs to. Only used to pick an icon.
 enum class DeviceKind {
@@ -155,6 +159,14 @@ QString deviceKey(const Device &device);
 // while UPower has not read the serial number yet, so a setting under either key counts.
 QString legacyDeviceKey(const Device &device);
 
+// Whether a widget instance hides `device`: its deviceKey() or legacyDeviceKey() is among
+// `hiddenKeys`.
+bool isHiddenBy(const Device &device, const QStringList &hiddenKeys);
+
+// The name a widget instance shows instead of the device's own, from its key -> name map
+// (under deviceKey(), else legacyDeviceKey()), trimmed; empty if there is none.
+QString customDeviceName(const Device &device, const QVariantMap &customNames);
+
 // Whether `a` and `b` are the same physical device, possibly under another id: same id, same
 // Bluetooth address, or same name and kind. Two devices with the same name and kind but
 // different serial numbers are different devices (e.g. two mice of one model, each on its own
@@ -187,13 +199,26 @@ QList<Device> vanishedDevices(const QList<Device> &shown, const QList<Device> &n
 // holds the ids already warned about and is updated: a device is warned about again only
 // after it charged or rose above the threshold, or disconnected.
 QList<Device> devicesToWarn(const QList<Device> &devices, QSet<QString> &warned, int threshold);
+// As above, with a threshold per device.
+QList<Device> devicesToWarn(const QList<Device> &devices, QSet<QString> &warned, const std::function<int(const Device &)> &threshold);
 
 // The low battery notification settings of one widget instance.
 struct NotificationSetting {
     bool enabled = false;
     int threshold = 20; // the "Low battery at" level, in percent
+    QStringList hiddenKeys; // devices this instance does not show (see isHiddenBy())
+    QVariantMap customNames; // key -> name this instance shows (see customDeviceName())
 
     bool operator==(const NotificationSetting &) const = default;
+};
+
+// How to notify about one device.
+struct DeviceNotification {
+    bool enabled = false;
+    int threshold = 20;
+    QString name; // the device's name in the notification
+
+    bool operator==(const DeviceNotification &) const = default;
 };
 
 // The settings the shared backend notifies with, from those of every widget instance: enabled
@@ -202,6 +227,11 @@ struct NotificationSetting {
 // which batteries are low (see devicesToWarn()), so turning notifications on does not warn
 // about a battery that already was.
 NotificationSetting notificationSettings(const QList<NotificationSetting> &instances);
+
+// The settings for `device`, from those of the instances that show it (see notificationSettings()),
+// so a device hidden in every instance is not notified about. The name is the custom one of the
+// first enabled instance that has one, else the device's own.
+DeviceNotification notificationFor(const Device &device, const QList<NotificationSetting> &instances);
 
 // A connected device that reports no battery level to Linux, e.g. a wireless receiver whose
 // keyboard reports its level only through the vendor's own app. Listed so that a device the
