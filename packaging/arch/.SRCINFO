@@ -1,6 +1,6 @@
 pkgbase = plasma6-applets-device-battery
 	pkgdesc = Plasma 6 widget showing the battery of AirPods, headphones, keyboards, mice and other wireless devices
-	pkgver = 1.2.0
+	pkgver = 1.3.0
 	pkgrel = 1
 	url = https://github.com/giovannilentini/device-battery
 	arch = x86_64
@@ -17,7 +17,7 @@ pkgbase = plasma6-applets-device-battery
 	depends = kcmutils
 	depends = upower
 	depends = bluez
-	source = device-battery-1.2.0.tar.gz::https://github.com/giovannilentini/device-battery/archive/refs/tags/v1.2.0.tar.gz
-	sha256sums = 2082363475261f7d01e69062b8723222e18a30141dbbe997c70ce6b2a1ac3927
+	source = device-battery-1.3.0.tar.gz::https://github.com/giovannilentini/device-battery/archive/refs/tags/v1.3.0.tar.gz
+	sha256sums = 00762cb6b22b3bf36cd88e2ec47e3fa2a489636d5435032e64847e91040dce9d
 
 pkgname = plasma6-applets-device-battery
