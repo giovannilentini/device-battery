@@ -1,5 +1,5 @@
 Name:           device-battery
-Version:        1.2.0
+Version:        1.3.0
 Release:        1%{?dist}
 Summary:        Plasma 6 widget showing the battery of AirPods and other wireless devices
 
@@ -54,6 +54,11 @@ controllers. It runs in the panel, the system tray or on the desktop.
 %{_datadir}/plasma/plasmoids/io.github.giovannilentini.devicebattery/
 
 %changelog
+* Fri Nov 20 2026 giovannilentini <giovannilentini29@gmail.com> - 1.3.0-1
+- Disconnected devices are hidden by default (option in the settings)
+- Low battery notifications use custom names and skip hidden devices
+- Fix "N min ago" on the desktop list, "Yesterday" plural, grace period
+
 * Wed Nov 11 2026 giovannilentini <giovannilentini29@gmail.com> - 1.2.0-1
 - Devices of the same model are told apart by their serial number
 - Low battery notifications follow the settings of every widget instance

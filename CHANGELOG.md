@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.3.0 (2026-11-20)
 
 - `.deb` packages for Debian 13 and Ubuntu 26.04 are attached to every release
 - Recently disconnected devices are no longer listed by default: turn on *List disconnected
