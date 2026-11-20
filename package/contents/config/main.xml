@@ -20,7 +20,7 @@
         </entry>
         <entry name="showDisconnected" type="Bool">
             <label>List recently disconnected devices with their last battery levels</label>
-            <default>true</default>
+            <default>false</default>
         </entry>
     </group>
     <group name="Devices">

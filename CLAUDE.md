@@ -70,6 +70,8 @@ CHANGELOG.md              user-facing changes; new entries go under "Unreleased"
 - Work on a branch, never directly on `main`.
 - Keep this file up to date: repo structure, these instructions, and a log of what we change.
   It is committed and pushed with the work, and is just for us (not user documentation).
+- The *Disconnected* section stays, but is off by default (`showDisconnected` default `false`
+  in main.xml); users turn it on in the settings.
 
 ## Change log
 
@@ -95,6 +97,13 @@ Fixes from the review of `main` at fd4a0ee:
    threshold is the highest among them, and the name is the first enabled instance's custom
    name. `devicesToWarn()` got an overload with a per-device threshold. `isHiddenBy()` and
    `customDeviceName()` moved to device.cpp and `DeviceFilter` uses them too. Tests added.
+
+5. **Disconnected section off by default** (maintainer's choice: useful, but not wanted by
+   default). `showDisconnected` defaults to `false` in `config/main.xml`; README, KDE Store
+   text and changelog updated. KConfig does not store default values, so existing users who
+   never touched the checkbox also stop seeing the section. The backend still remembers
+   recently disconnected devices, so turning it on shows them right away. README's
+   notification text was also updated for fix 4.
 
 Still open (not fixed, unverified): `applyPlacements` assigns primary/secondary by position
 after `parseBatteryPacket` dropped Disconnected/unknown entries, so if the primary's entry is
